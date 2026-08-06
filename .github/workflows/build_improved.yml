@@ -7,6 +7,10 @@ on:
       - main
       - master
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FLUTTER_VERSION: "3.41.9"
   RUST_VERSION: "1.93.1"
