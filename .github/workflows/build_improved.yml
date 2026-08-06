@@ -171,7 +171,11 @@ jobs:
       - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/system-images /opt/ghc /opt/hostedtoolcache
+          sudo rm -rf /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/cmake
+          sudo rm -rf /opt/az /opt/microsoft /opt/pipx
           sudo apt-get clean
+          sudo apt-get autoremove -y
+          docker system prune -af --volumes 2>/dev/null || true
           df -h /
 
       - uses: actions/checkout@v4
@@ -190,9 +194,9 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@1.93.1
         with:
-          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
+          targets: aarch64-linux-android, x86_64-linux-android
 
-      - name: Install Android SDK components
+      - name: Install Android NDK
         run: |
           export ANDROID_SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
@@ -226,9 +230,15 @@ jobs:
           dart run build_runner build --delete-conflicting-outputs
           dart run slang
 
+      - name: Free up space before APK build
+        run: |
+          rm -rf ~/.cargo/registry/cache ~/.cargo/registry/src
+          rm -rf /home/runner/.rustup/toolchains/*/share/doc
+          df -h /
+
       - name: Build APK
         working-directory: app
-        run: flutter build apk --release
+        run: flutter build apk --release --target-platform android-arm64,android-x64
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
