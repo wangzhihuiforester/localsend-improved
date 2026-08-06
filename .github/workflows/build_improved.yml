@@ -2,6 +2,10 @@ name: Build Improved LocalSend
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
 
 env:
   FLUTTER_VERSION: "3.41.9"
@@ -10,51 +14,60 @@ env:
 
 jobs:
   build_windows:
-    name: Windows 绿色版 (zip)
+    name: Windows Portable + Installer
     runs-on: windows-latest
 
     steps:
       - name: Fix long file paths
         run: git config --system core.longpaths true
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.93.1
+
+      - name: Add Rust target
+        run: rustup target add x86_64-pc-windows-msvc
 
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.93.1
-
-      - name: Dependencies
+      - name: Flutter dependencies
         working-directory: app
         run: flutter pub get
 
       - name: Run code generators
         working-directory: app
+        continue-on-error: true
         run: |
           dart run build_runner build --delete-conflicting-outputs
           dart run slang
 
-      - name: Debug - build rust lib directly
-        shell: pwsh
-        run: |
-          echo "CARGO_HOME=$env:CARGO_HOME"
-          echo "RUSTUP_HOME=$env:RUSTUP_HOME"
-          cargo --version
-          rustc --version
-          $env:CARGO_TERM_COLOR = "never"
-          Push-Location packages/localsend_isolates/rust
-          cargo build --release 2>&1 | Select-Object -Last 40
-          $code = $LASTEXITCODE
-          Pop-Location
-          echo "cargo build exit=$code"
-          exit $code
-
       - name: Build Windows release
         working-directory: app
         run: flutter build windows --release
+
+      - name: Add VCRedist DLLs and settings
+        shell: pwsh
+        run: |
+          $release = "app/build/windows/x64/runner/Release"
+          $dllSource = "support/build/windows/x64"
+          if (Test-Path "$dllSource/msvcp140.dll") {
+            Copy-Item "$dllSource/msvcp140.dll" "$release/"
+            Copy-Item "$dllSource/vcruntime140.dll" "$release/"
+            Copy-Item "$dllSource/vcruntime140_1.dll" "$release/"
+          }
+          if (-not (Test-Path "$release/settings.json")) {
+            '{}' | Out-File "$release/settings.json" -Encoding utf8
+          }
 
       - name: Create portable zip
         shell: pwsh
@@ -63,20 +76,102 @@ jobs:
           Compress-Archive -Path "$release/*" -DestinationPath "LocalSend_Windows_Portable.zip"
 
       - name: Upload Windows portable zip
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
-          name: windows-portable
+          name: windows-portable-zip
           path: LocalSend_Windows_Portable.zip
+          retention-days: 30
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+
+      - name: Build EXE installer
+        shell: pwsh
+        run: |
+          $releaseDir = "app/build/windows/x64/runner/Release"
+          $iconFile = "app/assets/packaging/logo.ico"
+          if (-not (Test-Path $iconFile)) {
+            $iconFile = "app/windows/runner/resources/app_icon.ico"
+          }
+
+          # Get version from pubspec.yaml
+          $pubspec = Get-Content "app/pubspec.yaml" -Raw
+          $versionMatch = [regex]::Match($pubspec, 'version:\s*(\d+\.\d+\.\d+)')
+          $appVersion = if ($versionMatch.Success) { $versionMatch.Groups[1].Value } else { "1.0.0" }
+
+          $issContent = @"
+          [Setup]
+          AppName=LocalSend
+          AppVersion=$appVersion
+          AppPublisher=LocalSend
+          AppURL=https://localsend.org
+          DefaultDirName={autopf}\LocalSend
+          DisableProgramGroupPage=yes
+          PrivilegesRequiredOverridesAllowed=dialog
+          OutputDir=installer-output
+          OutputBaseFilename=LocalSend-Setup
+          SetupIconFile=$iconFile
+          UninstallDisplayIcon={app}\localsend_app.exe
+          Compression=lzma
+          SolidCompression=yes
+          WizardStyle=modern
+          ArchitecturesInstallIn64BitMode=x64compatible
+          ArchitecturesAllowed=x64compatible
+
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+
+          [Tasks]
+          Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+          [Files]
+          Source: "$releaseDir\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{autoprograms}\LocalSend"; Filename: "{app}\localsend_app.exe"
+          Name: "{autodesktop}\LocalSend"; Filename: "{app}\localsend_app.exe"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\localsend_app.exe"; Description: "{cm:LaunchProgram,LocalSend}"; Flags: nowait postinstall skipifsilent
+          "@
+
+          $issContent | Out-File -FilePath "build_installer.iss" -Encoding UTF8
+          $innoPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $innoPath)) {
+            $innoPath = "C:\Program Files\Inno Setup 6\ISCC.exe"
+          }
+          if (Test-Path $innoPath) {
+            & "$innoPath" "build_installer.iss"
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "EXE installer built successfully"
+            } else {
+              Write-Host "EXE installer build failed (non-fatal)"
+            }
+          } else {
+            Write-Host "Inno Setup not found, skipping EXE installer"
+          }
+
+      - name: Upload EXE installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe-installer
+          path: |
+            installer-output/*.exe
+            *.exe
+          if-no-files-found: ignore
+          retention-days: 30
 
   build_apk:
     name: Android APK
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "17"
@@ -86,7 +181,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
 
-      - name: Install Rust (with Android targets)
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@1.93.1
         with:
           targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
@@ -95,9 +190,7 @@ jobs:
         run: |
           export ANDROID_SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          echo "SDKMANAGER=$SDKMANAGER"
-          ls -la "$ANDROID_SDK_ROOT/cmdline-tools/" || true
-          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358"
+          "$SDKMANAGER" --install "platforms;android-34" "build-tools;34.0.0" "ndk;${NDK_VERSION}"
           yes | "$SDKMANAGER" --licenses > /dev/null || true
 
       - name: Generate signing keystore
@@ -116,12 +209,13 @@ jobs:
           storeFile=secrets/android-keystore.jks
           EOF
 
-      - name: Dependencies
+      - name: Flutter dependencies
         working-directory: app
         run: flutter pub get
 
       - name: Run code generators
         working-directory: app
+        continue-on-error: true
         run: |
           dart run build_runner build --delete-conflicting-outputs
           dart run slang
@@ -131,7 +225,61 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload APK
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: app/build/app/outputs/flutter-apk/*.apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+  build_linux:
+    name: Linux Portable
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake libgtk-3-dev ninja-build libayatana-appindicator3-dev libsecret-1-dev libjsoncpp-dev
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.93.1
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: Flutter dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Run code generators
+        working-directory: app
+        continue-on-error: true
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          dart run slang
+
+      - name: Build Linux release
+        working-directory: app
+        run: flutter build linux --release
+
+      - name: Create tar.gz archive
+        run: |
+          cd app/build/linux/x64/release/bundle
+          tar -czvf ../../../../../LocalSend_Linux_Portable.tar.gz *
+
+      - name: Upload Linux portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-portable
+          path: LocalSend_Linux_Portable.tar.gz
+          retention-days: 30
