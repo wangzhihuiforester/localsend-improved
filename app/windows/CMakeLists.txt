@@ -45,6 +45,12 @@ function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
 endfunction()
 
+# Suppress deprecation warnings for <experimental/coroutine> used by some
+# plugins (e.g. gal) that haven't migrated to C++20 <coroutine> yet.
+# This is required because newer MSVC (VS 2025) turns the warning into a
+# hard error via static_assert.
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Flutter library and tool build rules.
 set(FLUTTER_MANAGED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/flutter")
 add_subdirectory(${FLUTTER_MANAGED_DIR})
