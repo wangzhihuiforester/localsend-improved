@@ -37,6 +37,21 @@ jobs:
           dart run build_runner build --delete-conflicting-outputs
           dart run slang
 
+      - name: Debug - build rust lib directly
+        shell: pwsh
+        run: |
+          echo "CARGO_HOME=$env:CARGO_HOME"
+          echo "RUSTUP_HOME=$env:RUSTUP_HOME"
+          cargo --version
+          rustc --version
+          $env:CARGO_TERM_COLOR = "never"
+          Push-Location packages/localsend_isolates/rust
+          cargo build --release 2>&1 | Select-Object -Last 40
+          $code = $LASTEXITCODE
+          Pop-Location
+          echo "cargo build exit=$code"
+          exit $code
+
       - name: Build Windows release
         working-directory: app
         run: flutter build windows --release
