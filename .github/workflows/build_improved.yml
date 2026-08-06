@@ -71,13 +71,19 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
 
-      - name: Install Rust
+      - name: Install Rust (with Android targets)
         uses: dtolnay/rust-toolchain@1.93.1
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
 
       - name: Install Android SDK components
         run: |
-          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358"
-          yes | sdkmanager --licenses > /dev/null || true
+          export ANDROID_SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          echo "SDKMANAGER=$SDKMANAGER"
+          ls -la "$ANDROID_SDK_ROOT/cmdline-tools/" || true
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
 
       - name: Generate signing keystore
         working-directory: app/android
