@@ -25,7 +25,7 @@ jobs:
           channel: "stable"
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@${{ env.RUST_VERSION }}
+        uses: dtolnay/rust-toolchain@1.93.1
 
       - name: Dependencies
         working-directory: app
@@ -72,11 +72,11 @@ jobs:
           channel: "stable"
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@${{ env.RUST_VERSION }}
+        uses: dtolnay/rust-toolchain@1.93.1
 
       - name: Install Android SDK components
         run: |
-          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "ndk;${{ env.NDK_VERSION }}"
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358"
           yes | sdkmanager --licenses > /dev/null || true
 
       - name: Generate signing keystore
