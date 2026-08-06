@@ -49,7 +49,7 @@ class ChatState {
 /// 负责管理所有设备的聊天消息，包括接收、发送、已读标记和清除。
 class ChatNotifier extends Notifier<ChatState> {
   @override
-  ChatState build() => ChatState.initial();
+  ChatState init() => ChatState.initial();
 
   /// 添加一条接收到的聊天消息。
   void addIncomingMessage({

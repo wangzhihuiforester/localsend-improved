@@ -62,7 +62,7 @@ class ReceiveController {
     // 检查是否为聊天消息（通过 LS_CHAT: 前缀标识）
     if (event.info.alias.startsWith('LS_CHAT:')) {
       final message = event.info.alias.substring(8); // 去掉 "LS_CHAT:" 前缀
-      final senderFingerprint = event.certFingerprint ?? event.info.fingerprint;
+      final senderFingerprint = event.info.fingerprint;
       final senderAlias = server.ref.read(favoritesProvider).firstWhereOrNull((e) => e.fingerprint == senderFingerprint)?.alias ?? '未知设备';
       
       server.ref.notifier(chatProvider).addIncomingMessage(

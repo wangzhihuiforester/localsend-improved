@@ -122,7 +122,7 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
                         ? Theme.of(context).colorScheme.primaryContainer
                         : Colors.grey.shade300,
                     child: Icon(
-                      info.isOnline ? Icons.devices : Icons.devices_off,
+                      info.isOnline ? Icons.devices : Icons.devices_other,
                       color: info.isOnline
                           ? Theme.of(context).colorScheme.onPrimaryContainer
                           : Colors.grey,
