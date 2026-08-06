@@ -15,7 +15,7 @@ env:
 jobs:
   build_windows:
     name: Windows Portable + Installer
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Fix long file paths
