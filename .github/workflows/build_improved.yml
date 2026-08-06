@@ -7,10 +7,6 @@ on:
       - main
       - master
 
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   FLUTTER_VERSION: "3.41.9"
   RUST_VERSION: "1.93.1"
@@ -208,7 +204,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null || true
 
       - name: Generate signing keystore
-        working-directory: app/android
+        working-directory: app/android/app
         run: |
           mkdir -p secrets
           keytool -genkeypair -v \
@@ -216,7 +212,7 @@ jobs:
             -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass localsend -keypass localsend \
             -dname "CN=LocalSend, OU=Local, O=Local, L=Local, ST=Local, C=CN"
-          cat > key.properties <<'EOF'
+          cat > ../key.properties <<'EOF'
           storePassword=localsend
           keyPassword=localsend
           keyAlias=upload
