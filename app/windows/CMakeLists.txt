@@ -51,6 +51,9 @@ endfunction()
 # hard error via static_assert.
 add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
 
+# Link RuntimeObject.lib for WinRT symbols used by plugins (screen_retriever, etc.)
+link_libraries(RuntimeObject)
+
 # Flutter library and tool build rules.
 set(FLUTTER_MANAGED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/flutter")
 add_subdirectory(${FLUTTER_MANAGED_DIR})
