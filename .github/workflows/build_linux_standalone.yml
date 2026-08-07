@@ -1,0 +1,456 @@
+name: Build Linux (Docker / Kylin Compatible)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/build_linux_standalone.yml'
+      - 'Dockerfile.linux.build'
+      - 'scripts/bundle_linux_libs.sh'
+      - 'app/**'
+      - 'packages/**'
+
+env:
+  FLUTTER_VERSION: "3.41.9"
+  RUST_VERSION: "1.93.1"
+
+jobs:
+  build_linux_docker:
+    name: Linux Docker Build (Ubuntu 20.04 / glibc 2.31)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache
+          sudo apt-get clean
+          docker system prune -af --volumes 2>/dev/null || true
+          df -h /
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.linux.build
+          tags: localsend-linux:latest
+          load: true
+          build-args: |
+            FLUTTER_VERSION=${{ env.FLUTTER_VERSION }}
+            RUST_VERSION=${{ env.RUST_VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract build from Docker image
+        run: |
+          # Create a container from the image and copy the build
+          docker create --name extract localsend-linux:latest
+          mkdir -p /tmp/localsend-bundle
+          docker cp extract:/app/bundle/. /tmp/localsend-bundle/
+          docker rm extract
+          
+          echo "=== Extracted files ==="
+          find /tmp/localsend-bundle -type f | sort
+          echo ""
+          echo "=== File count ==="
+          find /tmp/localsend-bundle -type f | wc -l
+
+      - name: Create robust launch script
+        run: |
+          cat > /tmp/localsend-bundle/localsend.sh << 'LAUNCHER'
+          #!/bin/bash
+          
+          ###############################################################################
+          # LocalSend Linux 启动脚本
+          # 兼容银河麒麟、Ubuntu、Debian、CentOS等Linux发行版
+          # 本版本在Ubuntu 20.04 (glibc 2.31)上编译，内置大部分共享库
+          ###############################################################################
+          
+          # 获取脚本所在目录
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          
+          # === 环境变量设置 ===
+          
+          # 设置库搜索路径：优先使用内置库
+          export LD_LIBRARY_PATH="${SCRIPT_DIR}/lib:${SCRIPT_DIR}:${LD_LIBRARY_PATH}"
+          
+          # 设置gdk-pixbuf模块路径（如果有内置的）
+          if [ -d "${SCRIPT_DIR}/lib/gdk-pixbuf-2.0" ]; then
+              export GDK_PIXBUF_MODULEDIR="${SCRIPT_DIR}/lib/gdk-pixbuf-2.0/2.10.0/loaders"
+              export GDK_PIXBUF_MODULE_FILE="${SCRIPT_DIR}/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+          fi
+          
+          # 强制使用X11后端（更好的兼容性）
+          # 如果需要Wayland，请注释掉下一行或设置为 wayland
+          if [ -z "$GDK_BACKEND" ]; then
+              export GDK_BACKEND=x11
+          fi
+          
+          # 禁用GTK客户端装饰（兼容非GNOME桌面如UKUI）
+          export GTK_CSD=0
+          
+          # 设置字体配置（如果有内置的）
+          if [ -d "${SCRIPT_DIR}/etc/fonts" ]; then
+              export FONTCONFIG_PATH="${SCRIPT_DIR}/etc/fonts"
+              export FONTCONFIG_FILE="${SCRIPT_DIR}/etc/fonts/fonts.conf"
+          fi
+          
+          # === 基本检查 ===
+          
+          # 检查主程序是否存在
+          if [ ! -f "$SCRIPT_DIR/localsend_app" ]; then
+              echo "错误: 找不到 localsend_app 程序文件"
+              echo "请确保完整解压了压缩包"
+              exit 1
+          fi
+          
+          # 检查是否有显示环境
+          if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
+              echo "错误: 未检测到图形显示环境"
+              echo "如果通过SSH连接，请使用: ssh -X 用户名@主机"
+              exit 1
+          fi
+          
+          # 检查CPU架构
+          ARCH=$(uname -m)
+          if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "amd64" ]; then
+              echo "错误: 本程序仅支持 x86_64 架构"
+              echo "当前系统架构: $ARCH"
+              echo "如果您使用的是ARM架构的国产CPU（如飞腾、鲲鹏），请联系开发者获取ARM版本"
+              exit 1
+          fi
+          
+          # 检查glibc版本
+          GLIBC_VERSION=$(ldd --version 2>&1 | head -1 | awk '{print $NF}')
+          GLIBC_MAJOR=$(echo "$GLIBC_VERSION" | cut -d. -f1)
+          GLIBC_MINOR=$(echo "$GLIBC_VERSION" | cut -d. -f2)
+          GLIBC_NUM=$((GLIBC_MAJOR * 100 + GLIBC_MINOR))
+          
+          if [ "$GLIBC_NUM" -lt 231 ]; then
+              echo "错误: glibc版本过低 (当前: $GLIBC_VERSION, 需要: 2.31+)"
+              echo "请升级系统glibc或使用更新版本的操作系统"
+              exit 1
+          fi
+          
+          # === 库依赖检查 ===
+          
+          # 检查是否有缺失的库
+          MISSING=$(ldd "$SCRIPT_DIR/localsend_app" 2>&1 | grep "not found" || true)
+          if [ -n "$MISSING" ]; then
+              echo "警告: 以下库缺失:"
+              echo "$MISSING"
+              echo ""
+              echo "正在尝试自动安装缺失的依赖..."
+              
+              # 检测包管理器并安装缺失库
+              if command -v apt-get &>/dev/null; then
+                  # Debian/Ubuntu/Kylin
+                  echo "使用 apt-get 安装..."
+                  sudo apt-get update 2>/dev/null || true
+                  
+                  # 从缺失库名推断需要的包
+                  for lib in $(echo "$MISSING" | awk '{print $1}'); do
+                      case "$lib" in
+                          libgtk-3.so.0)      sudo apt-get install -y libgtk-3-0 2>/dev/null || true ;;
+                          libglib-2.0.so.0)   sudo apt-get install -y libglib2.0-0 2>/dev/null || true ;;
+                          libnss3.so)         sudo apt-get install -y libnss3 2>/dev/null || true ;;
+                          libsecret-1.so.0)   sudo apt-get install -y libsecret-1-0 2>/dev/null || true ;;
+                          libjsoncpp*)        sudo apt-get install -y libjsoncpp25 2>/dev/null || sudo apt-get install -y libjsoncpp24 2>/dev/null || sudo apt-get install -y libjsoncpp1 2>/dev/null || true ;;
+                          libayatana-appindicator3.so.1) sudo apt-get install -y libayatana-appindicator3-1 2>/dev/null || true ;;
+                          libayatana-ido3-0.4.so.0) sudo apt-get install -y libayatana-ido3-0.4-0 2>/dev/null || true ;;
+                          libgdk_pixbuf-2.0.so.0) sudo apt-get install -y libgdk-pixbuf2.0-0 2>/dev/null || true ;;
+                          libpango-1.0.so.0)  sudo apt-get install -y libpango-1.0-0 2>/dev/null || true ;;
+                          libcairo.so.2)      sudo apt-get install -y libcairo2 2>/dev/null || true ;;
+                          libharfbuzz.so.0)   sudo apt-get install -y libharfbuzz0b 2>/dev/null || true ;;
+                          libwayland-*)       sudo apt-get install -y libwayland-client0 libwayland-egl1 2>/dev/null || true ;;
+                          libxkbcommon.so.0)  sudo apt-get install -y libxkbcommon0 2>/dev/null || true ;;
+                          libgbm.so.1)        sudo apt-get install -y libgbm1 2>/dev/null || true ;;
+                          libdrm.so.2)        sudo apt-get install -y libdrm2 2>/dev/null || true ;;
+                          libEGL.so.1)        sudo apt-get install -y libegl1 2>/dev/null || true ;;
+                          libGL.so.1)         sudo apt-get install -y libgl1 2>/dev/null || true ;;
+                          libfontconfig.so.1) sudo apt-get install -y libfontconfig1 2>/dev/null || true ;;
+                          libfreetype.so.6)   sudo apt-get install -y libfreetype6 2>/dev/null || true ;;
+                          libfribidi.so.0)    sudo apt-get install -y libfribidi0 2>/dev/null || true ;;
+                          libgraphite2.so.3)  sudo apt-get install -y libgraphite2-3 2>/dev/null || true ;;
+                          libatk-1.0.so.0)    sudo apt-get install -y libatk1.0-0 2>/dev/null || true ;;
+                          libatk-bridge-2.0.so.0) sudo apt-get install -y libatk-bridge2.0-0 2>/dev/null || true ;;
+                          libatspi.so.0)      sudo apt-get install -y libatspi2.0-0 2>/dev/null || true ;;
+                          libepoxy.so.0)      sudo apt-get install -y libepoxy0 2>/dev/null || true ;;
+                          libcups.so.2)        sudo apt-get install -y libcups2 2>/dev/null || true ;;
+                          libdbus-1.so.3)     sudo apt-get install -y libdbus-1-3 2>/dev/null || true ;;
+                          libstdc++.so.6)     sudo apt-get install -y libstdc++6 2>/dev/null || true ;;
+                          libX11.so.6)        sudo apt-get install -y libx11-6 2>/dev/null || true ;;
+                          libXext.so.6)       sudo apt-get install -y libxext6 2>/dev/null || true ;;
+                          libXrandr.so.2)     sudo apt-get install -y libxrandr2 2>/dev/null || true ;;
+                          libXi.so.6)         sudo apt-get install -y libxi6 2>/dev/null || true ;;
+                          libXtst.so.6)       sudo apt-get install -y libxtst6 2>/dev/null || true ;;
+                          *) echo "  未知库: $lib (跳过)" ;;
+                      esac
+                  done
+                  
+              elif command -v yum &>/dev/null; then
+                  # RHEL/CentOS/Kylin (RPM)
+                  echo "使用 yum 安装..."
+                  sudo yum install -y gtk3 glib2 nss libsecret jsoncpp 2>/dev/null || true
+                  sudo yum install -y libappindicator-gtk3 libayatana-appindicator 2>/dev/null || true
+                  sudo yum install -y pango cairo gdk-pixbuf2 harfbuzz 2>/dev/null || true
+                  sudo yum install -y libwayland-client libxkbcommon libgbm 2>/dev/null || true
+                  sudo yum install -y libfontconfig freetype libfribidi 2>/dev/null || true
+                  sudo yum install -y atk at-spi2-atk cups-libs 2>/dev/null || true
+                  sudo yum install -y libstdc++ libX11 libXext libXrandr libXi 2>/dev/null || true
+                  
+              elif command -v dnf &>/dev/null; then
+                  # Fedora/newer RHEL
+                  echo "使用 dnf 安装..."
+                  sudo dnf install -y gtk3 glib2 nss libsecret 2>/dev/null || true
+                  sudo dnf install -y libappindicator-gtk3 2>/dev/null || true
+                  sudo dnf install -y pango cairo gdk-pixbuf2 harfbuzz 2>/dev/null || true
+                  sudo dnf install -y wayland-libs libxkbcommon mesa-libgbm 2>/dev/null || true
+                  sudo dnf install -y fontconfig freetype fribidi 2>/dev/null || true
+                  sudo dnf install -y atk at-spi2-atk cups-libs 2>/dev/null || true
+                  sudo dnf install -y libstdc++ libX11 libXext libXrandr libXi 2>/dev/null || true
+              fi
+              
+              # 重新检查
+              STILL_MISSING=$(ldd "$SCRIPT_DIR/localsend_app" 2>&1 | grep "not found" || true)
+              if [ -n "$STILL_MISSING" ]; then
+                  echo ""
+                  echo "错误: 以下库仍然缺失:"
+                  echo "$STILL_MISSING"
+                  echo ""
+                  echo "请手动安装这些库后重试"
+                  echo "可以运行诊断脚本获取更多信息: ./diagnose.sh"
+                  exit 1
+              else
+                  echo "所有缺失库已安装成功!"
+              fi
+          fi
+          
+          # === 启动程序 ===
+          
+          # 确保程序有执行权限
+          chmod +x "$SCRIPT_DIR/localsend_app" 2>/dev/null || true
+          
+          # 直接启动程序
+          exec "$SCRIPT_DIR/localsend_app" "$@"
+          LAUNCHER
+          chmod +x /tmp/localsend-bundle/localsend.sh
+
+      - name: Create diagnostic script
+        run: |
+          cat > /tmp/localsend-bundle/diagnose.sh << 'DIAG'
+          #!/bin/bash
+          ###############################################################################
+          # LocalSend 诊断脚本 - 收集系统信息用于问题排查
+          ###############################################################################
+          
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          
+          echo "============================================"
+          echo "LocalSend 系统诊断报告"
+          echo "============================================"
+          echo ""
+          
+          echo "=== 1. 系统信息 ==="
+          echo "操作系统: $(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 || echo '未知')"
+          echo "内核版本: $(uname -r)"
+          echo "CPU架构: $(uname -m)"
+          echo ""
+          
+          echo "=== 2. glibc 版本 ==="
+          ldd --version 2>&1 | head -1
+          echo ""
+          
+          echo "=== 3. 显示环境 ==="
+          echo "DISPLAY: ${DISPLAY:-未设置}"
+          echo "WAYLAND_DISPLAY: ${WAYLAND_DISPLAY:-未设置}"
+          echo "XDG_SESSION_TYPE: ${XDG_SESSION_TYPE:-未设置}"
+          echo "XDG_CURRENT_DESKTOP: ${XDG_CURRENT_DESKTOP:-未设置}"
+          echo ""
+          
+          echo "=== 4. 主程序信息 ==="
+          if [ -f "$SCRIPT_DIR/localsend_app" ]; then
+              echo "文件存在: 是"
+              echo "文件大小: $(stat -c%s "$SCRIPT_DIR/localsend_app" 2>/dev/null) 字节"
+              echo "文件权限: $(stat -c%A "$SCRIPT_DIR/localsend_app" 2>/dev/null)"
+              echo "ELF架构: $(file "$SCRIPT_DIR/localsend_app" 2>/dev/null)"
+          else
+              echo "文件存在: 否"
+          fi
+          echo ""
+          
+          echo "=== 5. glibc 符号要求 ==="
+          readelf -V "$SCRIPT_DIR/localsend_app" 2>/dev/null | grep -E "GLIBC|GLIBCXX|CXXABI" | head -20
+          echo ""
+          
+          echo "=== 6. 库依赖检查 ==="
+          export LD_LIBRARY_PATH="${SCRIPT_DIR}/lib:${SCRIPT_DIR}:${LD_LIBRARY_PATH}"
+          ldd "$SCRIPT_DIR/localsend_app" 2>&1
+          echo ""
+          
+          echo "=== 7. 缺失的库 ==="
+          MISSING=$(ldd "$SCRIPT_DIR/localsend_app" 2>&1 | grep "not found" || echo "无缺失")
+          echo "$MISSING"
+          echo ""
+          
+          echo "=== 8. 内置库列表 ==="
+          if [ -d "$SCRIPT_DIR/lib" ]; then
+              ls -la "$SCRIPT_DIR/lib/"*.so* 2>/dev/null | wc -l
+              echo "库文件:"
+              ls "$SCRIPT_DIR/lib/" 2>/dev/null
+          else
+              echo "lib目录不存在"
+          fi
+          echo ""
+          
+          echo "=== 9. 字体检查 ==="
+          if command -v fc-list &>/dev/null; then
+              echo "中文字体:"
+              fc-list 2>/dev/null | grep -iE "noto|wenquanyi|cjk|wqy|microhei" | head -5 || echo "  未找到中文字体"
+              echo ""
+              echo "可用字体总数: $(fc-list 2>/dev/null | wc -l)"
+          else
+              echo "fontconfig未安装"
+          fi
+          echo ""
+          
+          echo "=== 10. 磁盘空间 ==="
+          df -h "$SCRIPT_DIR" 2>/dev/null || true
+          echo ""
+          
+          echo "=== 11. GTK 版本 ==="
+          if command -v dpkg &>/dev/null; then
+              dpkg -l | grep -i "libgtk-3" 2>/dev/null || echo "无法检测"
+          elif command -v rpm &>/dev/null; then
+              rpm -qa | grep -i gtk 2>/dev/null || echo "无法检测"
+          else
+              echo "无法检测"
+          fi
+          echo ""
+          
+          echo "=== 12. 尝试运行程序 ==="
+          echo "正在测试启动..."
+          timeout 5 "$SCRIPT_DIR/localsend_app" --help 2>&1 || true
+          echo ""
+          
+          echo "============================================"
+          echo "诊断完成"
+          echo "请将以上信息发送给开发者以便排查问题"
+          echo "============================================"
+          DIAG
+          chmod +x /tmp/localsend-bundle/diagnose.sh
+
+      - name: Create README
+        run: |
+          cat > /tmp/localsend-bundle/README_LINUX.txt << 'README'
+          ###############################################################################
+          # LocalSend Linux 便携版 - 银河麒麟系统兼容版
+          # 在 Ubuntu 20.04 (glibc 2.31) 上编译，内置全部共享库
+          ###############################################################################
+          
+          【运行方法】
+          方法1（推荐）:
+            1. 解压压缩包到任意目录
+            2. 在终端中运行: ./localsend.sh
+            
+          方法2（直接运行）:
+            1. 直接运行: ./localsend_app
+            （需要系统已安装GTK3等基础库）
+            
+          【系统要求】
+          - CPU架构: x86_64 (amd64)
+          - glibc版本: 2.31 或更高
+          - 图形显示环境（X11或Wayland）
+          
+          【本版本特点】
+          - 在Ubuntu 20.04上编译，glibc版本为2.31
+          - 内置大部分共享库（GTK、Cairo、Pango等）
+          - 使用patchelf设置RPATH，无需配置LD_LIBRARY_PATH
+          - 启动脚本自动检测和安装缺失依赖
+          - 支持银河麒麟、Ubuntu、Debian、CentOS等发行版
+          
+          【如果无法运行】
+          1. 运行诊断脚本: ./diagnose.sh
+          2. 查看诊断输出中的"缺失的库"部分
+          3. 根据提示安装缺失的库
+          4. 或者直接运行 ./localsend.sh，脚本会自动尝试安装缺失依赖
+          
+          【常见问题】
+          
+          Q: 提示"GLIBC_2.xx not found"
+          A: 系统glibc版本过低。本程序需要glibc 2.31+
+             查看: ldd --version
+             解决: 升级系统或使用更旧的Linux发行版
+          
+          Q: 提示"cannot execute binary file"
+          A: CPU架构不匹配。本程序仅支持x86_64架构
+             查看: uname -m
+             如果是aarch64(ARM)，请联系开发者获取ARM版本
+          
+          Q: 程序启动后中文显示为方块
+          A: 安装中文字体:
+             sudo apt-get install fonts-wqy-microhei fonts-noto-cjk
+          
+          Q: 托盘图标不显示
+          A: 安装托盘库:
+             sudo apt-get install libayatana-appindicator3-1
+          
+          Q: Wayland下窗口不显示
+          A: 尝试设置环境变量:
+             export GDK_BACKEND=wayland
+             然后运行 ./localsend.sh
+          
+          Q: 程序闪退
+          A: 运行诊断脚本 ./diagnose.sh 查看详细信息
+          
+          【技术说明】
+          - 构建环境: Ubuntu 20.04 Docker容器
+          - Flutter版本: 3.41.9
+          - Rust版本: 1.93.1
+          - 编译器: Clang (Ubuntu 20.04)
+          - 所有共享库已使用patchelf设置RPATH
+          README
+
+      - name: Package as tar.gz
+        run: |
+          cd /tmp/localsend-bundle
+          tar -czvf "$GITHUB_WORKSPACE/LocalSend_Linux_Portable.tar.gz" .
+          
+          echo "=== Archive contents ==="
+          tar -tzvf "$GITHUB_WORKSPACE/LocalSend_Linux_Portable.tar.gz" | head -50
+          echo ""
+          echo "Archive size: $(du -h "$GITHUB_WORKSPACE/LocalSend_Linux_Portable.tar.gz" | cut -f1)"
+
+      - name: Upload Linux portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-portable-docker-v2
+          path: LocalSend_Linux_Portable.tar.gz
+          retention-days: 30
+
+      - name: Verify build
+        continue-on-error: true
+        run: |
+          echo "=== Build Verification ==="
+          echo "Archive contents:"
+          tar -tzf "$GITHUB_WORKSPACE/LocalSend_Linux_Portable.tar.gz" | wc -l
+          echo "files in archive"
+          echo ""
+          echo "Archive size:"
+          ls -lh "$GITHUB_WORKSPACE/LocalSend_Linux_Portable.tar.gz"
+          echo ""
+          echo "Checking for key files:"
+          for f in localsend_app localsend.sh diagnose.sh lib/ README_LINUX.txt; do
+              if tar -tzf "$GITHUB_WORKSPACE/LocalSend_Linux_Portable.tar.gz" | grep -q "^./$f"; then
+                  echo "  OK: $f"
+              else
+                  echo "  MISSING: $f"
+              fi
+          done
