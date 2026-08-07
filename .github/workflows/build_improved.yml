@@ -470,7 +470,6 @@ jobs:
             clang cmake libgtk-3-dev ninja-build pkg-config \
             libayatana-appindicator3-dev libsecret-1-dev libjsoncpp-dev \
             libayatana-appindicator3-1 libayatana-ido3-0.4-0 \
-            libappindicator3-1 \
             libglib2.0-0 libglib2.0-dev \
             libgraphite2-3 libgraphite2-dev \
             libxdamage1 libxcomposite1 libxcursor1 libxinerama1 libxrandr2 \
@@ -487,6 +486,7 @@ jobs:
             libwayland-client0 libwayland-server0 libwayland-egl1 \
             libxkbcommon0 \
             fonts-noto-cjk fonts-wqy-microhei fonts-wqy-zenhei
+          # Note: libappindicator3-1 conflicts with libayatana-appindicator3-1, so we only install the latter
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
