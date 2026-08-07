@@ -30,7 +30,7 @@ jobs:
           java-version: "17"
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.93.1
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Add Rust target
         run: rustup target add x86_64-pc-windows-msvc
@@ -191,7 +191,7 @@ jobs:
           channel: "stable"
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.93.1
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: aarch64-linux-android, x86_64-linux-android
 
@@ -265,7 +265,7 @@ jobs:
           java-version: "17"
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.93.1
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - uses: subosito/flutter-action@v2
         with:
