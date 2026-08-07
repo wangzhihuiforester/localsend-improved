@@ -520,6 +520,7 @@ jobs:
       - name: Bundle shared libraries for Kylin compatibility
         shell: bash
         run: |
+          set +e
           BUNDLE_DIR="app/build/linux/x64/release/bundle"
           
           # Create lib directory for bundled shared libraries
@@ -573,60 +574,48 @@ jobs:
           
           echo "=== Bundling shared libraries ==="
           for lib in "${LIBS_TO_BUNDLE[@]}"; do
-            # Search in standard library paths
             found=$(find /usr/lib /lib -name "$lib" 2>/dev/null | head -1)
             if [ -n "$found" ]; then
-              cp "$found" "$BUNDLE_DIR/lib/" 2>/dev/null || true
-              echo "  Bundled: $lib -> $(basename $found)"
+              cp "$found" "$BUNDLE_DIR/lib/" 2>/dev/null
+              if [ $? -eq 0 ]; then
+                echo "  Bundled: $lib"
+              fi
             else
               echo "  Not found: $lib (may not be needed)"
             fi
           done
           
-          # Also bundle all dependencies of the main binary
-          echo "=== Checking binary dependencies ==="
-          ldd "$BUNDLE_DIR/localsend_app" 2>/dev/null || true
-          echo ""
-          
-          # Check the Rust shared library
-          RUST_LIB=$(find "$BUNDLE_DIR" -name "lib*.so" -o -name "*.so" 2>/dev/null | head -5)
-          for rust_so in $RUST_LIB; do
-            echo "=== Checking $rust_so dependencies ==="
-            ldd "$rust_so" 2>/dev/null || true
-            echo ""
-          done
-          
-          # Copy any missing dependencies found by ldd
-          echo "=== Copying missing dependencies ==="
-          ldd_output=$(ldd "$BUNDLE_DIR/localsend_app" 2>/dev/null || true)
-          echo "$ldd_output" | while read -r line; do
-            lib_path=$(echo "$line" | grep "=>" | awk '{print $3}')
+          # Copy dependencies of the main binary and shared libraries using ldd
+          echo "=== Copying binary dependencies ==="
+          ldd "$BUNDLE_DIR/localsend_app" 2>/dev/null | grep "=>" | awk '{print $3}' | while read -r lib_path; do
             if [ -n "$lib_path" ] && [ -f "$lib_path" ]; then
               lib_name=$(basename "$lib_path")
-              # Only copy if not already in bundle and not a standard system lib
               if [ ! -f "$BUNDLE_DIR/lib/$lib_name" ]; then
-                cp "$lib_path" "$BUNDLE_DIR/lib/" 2>/dev/null || true
-                echo "  Copied: $lib_name"
+                cp "$lib_path" "$BUNDLE_DIR/lib/" 2>/dev/null
+                [ $? -eq 0 ] && echo "  Copied: $lib_name"
               fi
             fi
           done
+          true
           
-          # Also check and copy dependencies for bundled .so files
+          # Copy dependencies of bundled .so files
+          echo "=== Copying shared library dependencies ==="
           find "$BUNDLE_DIR/lib" -name "*.so*" 2>/dev/null | while read -r so_file; do
-            ldd "$so_file" 2>/dev/null | while read -r line; do
-              lib_path=$(echo "$line" | grep "=>" | awk '{print $3}')
+            ldd "$so_file" 2>/dev/null | grep "=>" | awk '{print $3}' | while read -r lib_path; do
               if [ -n "$lib_path" ] && [ -f "$lib_path" ]; then
                 lib_name=$(basename "$lib_path")
                 if [ ! -f "$BUNDLE_DIR/lib/$lib_name" ]; then
-                  cp "$lib_path" "$BUNDLE_DIR/lib/" 2>/dev/null || true
-                  echo "  Copied (dep): $lib_name"
+                  cp "$lib_path" "$BUNDLE_DIR/lib/" 2>/dev/null
+                  [ $? -eq 0 ] && echo "  Copied (dep): $lib_name"
                 fi
               fi
             done
-          done || true
+          done
+          true
           
           echo "=== Bundled libraries ==="
           ls -la "$BUNDLE_DIR/lib/" 2>/dev/null || echo "No lib directory"
+          echo "Done bundling libraries"
 
       - name: Create launch script
         shell: bash
