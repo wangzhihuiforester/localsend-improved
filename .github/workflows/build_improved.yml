@@ -55,10 +55,69 @@ jobs:
         working-directory: app
         run: flutter build windows --release
 
-      - name: Add VCRedist DLLs and settings
+      - name: Add VCRedist DLLs, UCRT and settings
         shell: pwsh
         run: |
           $release = "app/build/windows/x64/runner/Release"
+          
+          # List of all required runtime DLLs
+          $requiredDlls = @(
+            "msvcp140.dll",
+            "vcruntime140.dll",
+            "vcruntime140_1.dll",
+            "ucrtbase.dll",
+            "api-ms-win-core-file-l1-1-0.dll",
+            "api-ms-win-core-file-l2-1-0.dll",
+            "api-ms-win-core-localization-l1-2-0.dll",
+            "api-ms-win-core-localization-obsolete-l1-2-0.dll",
+            "api-ms-win-core-processthreads-l1-1-0.dll",
+            "api-ms-win-core-processthreads-l1-1-1.dll",
+            "api-ms-win-core-synch-l1-1-0.dll",
+            "api-ms-win-core-synch-l1-2-0.dll",
+            "api-ms-win-core-heap-l1-1-0.dll",
+            "api-ms-win-core-errorhandling-l1-1-0.dll",
+            "api-ms-win-core-handle-l1-1-0.dll",
+            "api-ms-win-core-io-l1-1-0.dll",
+            "api-ms-win-core-heap-obsolete-l1-1-0.dll",
+            "api-ms-win-core-libraryloader-l1-1-0.dll",
+            "api-ms-win-core-memory-l1-1-0.dll",
+            "api-ms-win-core-memory-l1-1-1.dll",
+            "api-ms-win-core-namedpipe-l1-1-0.dll",
+            "api-ms-win-core-processenvironment-l1-1-0.dll",
+            "api-ms-win-core-string-l1-1-0.dll",
+            "api-ms-win-core-string-obsolete-l1-1-0.dll",
+            "api-ms-win-core-sysinfo-l1-1-0.dll",
+            "api-ms-win-core-timezone-l1-1-0.dll",
+            "api-ms-win-core-util-l1-1-0.dll",
+            "api-ms-win-core-console-l1-1-0.dll",
+            "api-ms-win-core-debug-l1-1-0.dll",
+            "api-ms-win-core-rtlsupport-l1-1-0.dll",
+            "api-ms-win-core-profile-l1-1-0.dll",
+            "api-ms-win-core-delayload-l1-1-0.dll",
+            "api-ms-win-core-file-l2-1-1.dll",
+            "api-ms-win-core-version-l1-1-0.dll",
+            "api-ms-win-crt-conio-l1-1-0.dll",
+            "api-ms-win-crt-convert-l1-1-0.dll",
+            "api-ms-win-crt-environment-l1-1-0.dll",
+            "api-ms-win-crt-filesystem-l1-1-0.dll",
+            "api-ms-win-crt-heap-l1-1-0.dll",
+            "api-ms-win-crt-locale-l1-1-0.dll",
+            "api-ms-win-crt-math-l1-1-0.dll",
+            "api-ms-win-crt-multibyte-l1-1-0.dll",
+            "api-ms-win-crt-private-l1-1-0.dll",
+            "api-ms-win-crt-process-l1-1-0.dll",
+            "api-ms-win-crt-runtime-l1-1-0.dll",
+            "api-ms-win-crt-stdio-l1-1-0.dll",
+            "api-ms-win-crt-string-l1-1-0.dll",
+            "api-ms-win-crt-time-l1-1-0.dll",
+            "api-ms-win-crt-utility-l1-1-0.dll",
+            "api-ms-win-shcore-obsolete-l1-1-0.dll",
+            "api-ms-win-core-kernel32-legacy-l1-1-0.dll",
+            "api-ms-win-core-registry-l1-1-0.dll",
+            "api-ms-win-core-io-l1-1-1.dll",
+            "api-ms-win-core-psapi-ansi-l1-1-0.dll",
+            "api-ms-win-core-psapi-l1-1-0.dll"
+          )
           
           # Try to find VCRedist DLLs from multiple sources on the runner
           $dllFound = $false
@@ -71,13 +130,22 @@ jobs:
             if (Test-Path $redistBase) {
               $latestRedist = Get-ChildItem $redistBase -Directory | Sort-Object Name -Descending | Select-Object -First 1
               $crtPath = Join-Path $latestRedist.FullName "x64\Microsoft.VC143.CRT"
+              $ucrtPath = Join-Path $latestRedist.FullName "x64\Microsoft.VC143.CRT"
               Write-Host "Checking VS Redist path: $crtPath"
               if (Test-Path (Join-Path $crtPath "msvcp140.dll")) {
+                # Copy VCRedist DLLs
                 Copy-Item (Join-Path $crtPath "msvcp140.dll") "$release\" -Force
                 Copy-Item (Join-Path $crtPath "vcruntime140.dll") "$release\" -Force
                 Copy-Item (Join-Path $crtPath "vcruntime140_1.dll") "$release\" -Force
+                # Copy UCRT DLLs (ucrtbase.dll and api-ms-win-* set)
+                foreach ($dll in $requiredDlls) {
+                  $srcPath = Join-Path $crtPath $dll
+                  if (Test-Path $srcPath) {
+                    Copy-Item $srcPath "$release\" -Force
+                  }
+                }
                 $dllFound = $true
-                Write-Host "Copied VCRedist DLLs from Visual Studio installation"
+                Write-Host "Copied VCRedist + UCRT DLLs from Visual Studio installation"
               }
             }
           }
@@ -87,13 +155,33 @@ jobs:
             $sysDir = [System.Environment]::SystemDirectory
             Write-Host "Checking System32: $sysDir"
             if (Test-Path (Join-Path $sysDir "msvcp140.dll")) {
+              # Copy VCRedist DLLs
               Copy-Item (Join-Path $sysDir "msvcp140.dll") "$release\" -Force
               Copy-Item (Join-Path $sysDir "vcruntime140.dll") "$release\" -Force
               if (Test-Path (Join-Path $sysDir "vcruntime140_1.dll")) {
                 Copy-Item (Join-Path $sysDir "vcruntime140_1.dll") "$release\" -Force
               }
+              # Copy UCRT DLLs
+              Copy-Item (Join-Path $sysDir "ucrtbase.dll") "$release\" -Force -ErrorAction SilentlyContinue
+              foreach ($dll in $requiredDlls) {
+                $srcPath = Join-Path $sysDir $dll
+                if (Test-Path $srcPath) {
+                  Copy-Item $srcPath "$release\" -Force
+                }
+              }
+              # Also check SysWOW64 for additional DLLs
+              $sysWow64 = "${env:windir}\SysWOW64"
+              if (Test-Path $sysWow64) {
+                foreach ($dll in $requiredDlls) {
+                  $srcPath = Join-Path $sysWow64 $dll
+                  $dstPath = Join-Path $release $dll
+                  if ((Test-Path $srcPath) -and (-not (Test-Path $dstPath))) {
+                    Copy-Item $srcPath "$release\" -Force
+                  }
+                }
+              }
               $dllFound = $true
-              Write-Host "Copied VCRedist DLLs from System32"
+              Write-Host "Copied VCRedist + UCRT DLLs from System32"
             }
           }
           
@@ -114,8 +202,36 @@ jobs:
                 if (Test-Path (Join-Path $dllDir "vcruntime140_1.dll")) {
                   Copy-Item (Join-Path $dllDir "vcruntime140_1.dll") "$release\" -Force
                 }
+                # Copy UCRT DLLs if present in extracted package
+                foreach ($dll in $requiredDlls) {
+                  $srcPath = Join-Path $dllDir $dll
+                  if (Test-Path $srcPath) {
+                    Copy-Item $srcPath "$release\" -Force
+                  }
+                }
                 $dllFound = $true
-                Write-Host "Copied VCRedist DLLs from downloaded installer"
+                Write-Host "Copied VCRedist + UCRT DLLs from downloaded installer"
+              }
+            }
+          }
+          
+          # Also check for UCRT in Windows SDK
+          $ucrtFound = Test-Path (Join-Path $release "ucrtbase.dll")
+          if (-not $ucrtFound) {
+            Write-Host "UCRT not found in Release, searching Windows SDK..."
+            $sdkBase = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+            if (Test-Path $sdkBase) {
+              $sdkVersion = Get-ChildItem $sdkBase -Directory | Sort-Object Name -Descending | Select-Object -First 1
+              $ucrtSdkPath = Join-Path $sdkVersion.FullName "x64\ucrt"
+              if (Test-Path (Join-Path $ucrtSdkPath "ucrtbase.dll")) {
+                Copy-Item (Join-Path $ucrtSdkPath "ucrtbase.dll") "$release\" -Force
+                foreach ($dll in $requiredDlls) {
+                  $srcPath = Join-Path $ucrtSdkPath $dll
+                  if (Test-Path $srcPath) {
+                    Copy-Item $srcPath "$release\" -Force
+                  }
+                }
+                Write-Host "Copied UCRT DLLs from Windows SDK"
               }
             }
           }
@@ -124,6 +240,31 @@ jobs:
             Write-Host "VCRedist DLLs successfully added to Release folder"
           } else {
             Write-Host "WARNING: Could not find VCRedist DLLs. The app may not run without VC++ Redistributable installed."
+          }
+          
+          # Verify all critical DLLs are present
+          Write-Host "`n=== DLL Verification ==="
+          $criticalDlls = @(
+            "msvcp140.dll",
+            "vcruntime140.dll", 
+            "vcruntime140_1.dll",
+            "ucrtbase.dll",
+            "flutter_windows.dll"
+          )
+          foreach ($dll in $criticalDlls) {
+            $dllPath = Join-Path $release $dll
+            if (Test-Path $dllPath) {
+              $size = (Get-Item $dllPath).Length
+              Write-Host "  OK: $dll ($size bytes)"
+            } else {
+              Write-Host "  MISSING: $dll"
+            }
+          }
+          
+          # List all files in Release directory
+          Write-Host "`n=== Release Directory Contents ==="
+          Get-ChildItem $release -Recurse | ForEach-Object {
+            Write-Host "  $($_.FullName.Replace($release, '.'))"
           }
           
           # Create settings.json if not exists
@@ -316,7 +457,7 @@ jobs:
           retention-days: 30
 
   build_linux:
-    name: Linux Portable
+    name: Linux Portable (Kylin Compatible)
     runs-on: ubuntu-22.04
 
     steps:
@@ -325,7 +466,27 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake libgtk-3-dev ninja-build libayatana-appindicator3-dev libsecret-1-dev libjsoncpp-dev
+          sudo apt-get install -y \
+            clang cmake libgtk-3-dev ninja-build pkg-config \
+            libayatana-appindicator3-dev libsecret-1-dev libjsoncpp-dev \
+            libayatana-appindicator3-1 libayatana-ido3-0.4-0 \
+            libappindicator3-1 \
+            libglib2.0-0 libglib2.0-dev \
+            libgraphite2-3 libgraphite2-dev \
+            libxdamage1 libxcomposite1 libxcursor1 libxinerama1 libxrandr2 \
+            libxi6 libxtst6 libxfixes3 libxrender1 libxext6 libx11-6 \
+            libgbm1 libdrm2 libegl1 libgl1 libgles2 \
+            libnss3 libnspr4 \
+            libatk1.0-0 libatk-bridge2.0-0 \
+            libcups2 libdbus-1-3 \
+            libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libcairo-gobject2 \
+            libfribidi0 libthai0 \
+            libfontconfig1 libfreetype6 \
+            libharfbuzz0b \
+            libgdk-pixbuf-2.0-0 libgdk-pixbuf2.0-dev \
+            libwayland-client0 libwayland-server0 libwayland-egl1 \
+            libxkbcommon0 \
+            fonts-noto-cjk fonts-wqy-microhei fonts-wqy-zenhei
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -356,6 +517,224 @@ jobs:
         working-directory: app
         run: flutter build linux --release
 
+      - name: Bundle shared libraries for Kylin compatibility
+        shell: bash
+        run: |
+          BUNDLE_DIR="app/build/linux/x64/release/bundle"
+          
+          # Create lib directory for bundled shared libraries
+          mkdir -p "$BUNDLE_DIR/lib"
+          
+          # List of libraries to bundle (these may be missing on Kylin OS)
+          LIBS_TO_BUNDLE=(
+            "libayatana-appindicator3.so.1"
+            "libayatana-ido3-0.4.so.0"
+            "libappindicator3.so.1"
+            "libindicator3.so.7"
+            "libdbusmenu-gtk3.so.4"
+            "libdbusmenu-glib.so.4"
+            "libgtk-3.so.0"
+            "libgdk-3.so.0"
+            "libglib-2.0.so.0"
+            "libgobject-2.0.so.0"
+            "libgio-2.0.so.0"
+            "libgmodule-2.0.so.0"
+            "libgthread-2.0.so.0"
+            "libpango-1.0.so.0"
+            "libpangocairo-1.0.so.0"
+            "libpangoft2-1.0.so.0"
+            "libcairo.so.2"
+            "libcairo-gobject.so.2"
+            "libgdk_pixbuf-2.0.so.0"
+            "libharfbuzz.so.0"
+            "libharfbuzz-gobject.so.0"
+            "libgraphite2.so.3"
+            "libfribidi.so.0"
+            "libatk-1.0.so.0"
+            "libatk-bridge-2.0.so.0"
+            "libatspi.so.0"
+            "libepoxy.so.0"
+            "libfreetype.so.6"
+            "libfontconfig.so.1"
+            "libwayland-client.so.0"
+            "libwayland-cursor.so.0"
+            "libwayland-egl.so.1"
+            "libxkbcommon.so.0"
+            "libgbm.so.1"
+            "libdrm.so.2"
+            "libnss3.so"
+            "libnspr4.so"
+            "libsecret-1.so.0"
+            "libjsoncpp.so.25"
+            "libjsoncpp.so.24"
+            "libjsoncpp.so.1"
+            "libcups.so.2"
+          )
+          
+          echo "=== Bundling shared libraries ==="
+          for lib in "${LIBS_TO_BUNDLE[@]}"; do
+            # Search in standard library paths
+            found=$(find /usr/lib /lib -name "$lib" 2>/dev/null | head -1)
+            if [ -n "$found" ]; then
+              cp "$found" "$BUNDLE_DIR/lib/" 2>/dev/null || true
+              echo "  Bundled: $lib -> $(basename $found)"
+            else
+              echo "  Not found: $lib (may not be needed)"
+            fi
+          done
+          
+          # Also bundle all dependencies of the main binary
+          echo "=== Checking binary dependencies ==="
+          ldd "$BUNDLE_DIR/localsend_app" 2>/dev/null || true
+          echo ""
+          
+          # Check the Rust shared library
+          RUST_LIB=$(find "$BUNDLE_DIR" -name "lib*.so" -o -name "*.so" 2>/dev/null | head -5)
+          for rust_so in $RUST_LIB; do
+            echo "=== Checking $rust_so dependencies ==="
+            ldd "$rust_so" 2>/dev/null || true
+            echo ""
+          done
+          
+          # Copy any missing dependencies found by ldd
+          echo "=== Copying missing dependencies ==="
+          ldd_output=$(ldd "$BUNDLE_DIR/localsend_app" 2>/dev/null || true)
+          echo "$ldd_output" | while read -r line; do
+            lib_path=$(echo "$line" | grep "=>" | awk '{print $3}')
+            if [ -n "$lib_path" ] && [ -f "$lib_path" ]; then
+              lib_name=$(basename "$lib_path")
+              # Only copy if not already in bundle and not a standard system lib
+              if [ ! -f "$BUNDLE_DIR/lib/$lib_name" ]; then
+                cp "$lib_path" "$BUNDLE_DIR/lib/" 2>/dev/null || true
+                echo "  Copied: $lib_name"
+              fi
+            fi
+          done
+          
+          # Also check and copy dependencies for bundled .so files
+          find "$BUNDLE_DIR/lib" -name "*.so*" 2>/dev/null | while read -r so_file; do
+            ldd "$so_file" 2>/dev/null | while read -r line; do
+              lib_path=$(echo "$line" | grep "=>" | awk '{print $3}')
+              if [ -n "$lib_path" ] && [ -f "$lib_path" ]; then
+                lib_name=$(basename "$lib_path")
+                if [ ! -f "$BUNDLE_DIR/lib/$lib_name" ]; then
+                  cp "$lib_path" "$BUNDLE_DIR/lib/" 2>/dev/null || true
+                  echo "  Copied (dep): $lib_name"
+                fi
+              fi
+            done
+          done || true
+          
+          echo "=== Bundled libraries ==="
+          ls -la "$BUNDLE_DIR/lib/" 2>/dev/null || echo "No lib directory"
+
+      - name: Create launch script
+        shell: bash
+        run: |
+          BUNDLE_DIR="app/build/linux/x64/release/bundle"
+          cat > "$BUNDLE_DIR/localsend.sh" << 'SCRIPT'
+          #!/bin/bash
+          
+          # LocalSend Linux launch script
+          # Compatible with Kylin OS, Ubuntu, Debian, and other Linux distributions
+          
+          # Get the directory where this script is located
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          
+          # Set up library path to use bundled libraries first
+          export LD_LIBRARY_PATH="${SCRIPT_DIR}/lib:${SCRIPT_DIR}:${LD_LIBRARY_PATH}"
+          
+          # Set GDK_BACKEND to x11 by default for better compatibility
+          # (Wayland support is limited in some desktop environments)
+          if [ -z "$GDK_BACKEND" ]; then
+            export GDK_BACKEND=x11
+          fi
+          
+          # Disable GTK CSD (Client-Side Decorations) for better compatibility
+          # with non-GNOME desktop environments like UKUI (Kylin OS)
+          export GTK_CSD=0
+          
+          # Set QT_AUTO_SCREEN_SCALE_FACTOR for mixed DPI environments
+          export QT_AUTO_SCREEN_SCALE_FACTOR=1
+          
+          # Check if required libraries exist
+          MISSING_LIBS=""
+          check_lib() {
+            local lib_name="$1"
+            if ! ldconfig -p 2>/dev/null | grep -q "$lib_name" && [ ! -f "${SCRIPT_DIR}/lib/$lib_name" ]; then
+              MISSING_LIBS="${MISSING_LIBS}  $lib_name\n"
+            fi
+          }
+          
+          # Only warn about critical missing libraries, don't block startup
+          check_lib "libgtk-3.so.0"
+          
+          if [ -n "$MISSING_LIBS" ]; then
+            echo "WARNING: The following libraries may be missing:"
+            echo -e "$MISSING_LIBS"
+            echo "Please install them using your package manager."
+            echo "On Kylin OS / Ubuntu: sudo apt-get install libgtk-3-0"
+            echo ""
+          fi
+          
+          # Check if display is available
+          if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
+            echo "ERROR: No display found. This application requires a graphical environment."
+            echo "If you're running via SSH, use X11 forwarding: ssh -X user@host"
+            exit 1
+          fi
+          
+          # Launch the application
+          exec "${SCRIPT_DIR}/localsend_app" "$@"
+          SCRIPT
+          chmod +x "$BUNDLE_DIR/localsend.sh"
+
+      - name: Install README for Linux
+        shell: bash
+        run: |
+          BUNDLE_DIR="app/build/linux/x64/release/bundle"
+          cat > "$BUNDLE_DIR/README_LINUX.txt" << 'README'
+          LocalSend Linux 便携版 - 银河麒麟系统兼容版
+          ===============================================
+          
+          【运行方法】
+          1. 解压压缩包到任意目录
+          2. 给启动脚本添加执行权限: chmod +x localsend.sh
+          3. 运行: ./localsend.sh
+          
+          或者直接运行: ./localsend_app (需要系统已安装GTK3)
+          
+          【系统要求】
+          - Linux x86_64
+          - GTK 3.20 或更高版本
+          - glibc 2.28 或更高版本
+          
+          【银河麒麟系统注意事项】
+          - 本版本已内置大部分依赖库
+          - 如果仍无法运行，请安装以下依赖:
+            sudo apt-get install libgtk-3-0 libglib2.0-0 libnss3
+          - 如果托盘图标不显示，请安装:
+            sudo apt-get install libayatana-appindicator3-1
+          - 如果中文显示为方块，请安装中文字体:
+            sudo apt-get install fonts-wqy-microhei
+          
+          【Wayland 用户】
+          如果使用 Wayland 会话，可能需要设置:
+          export GDK_BACKEND=wayland
+          然后再运行程序
+          
+          【常见问题】
+          Q: 程序无法启动，提示缺少库
+          A: 请运行 ldd localsend_app | grep "not found" 查看缺少哪些库，
+             然后使用 apt-get install 安装对应库
+          
+          Q: 托盘图标不显示
+          A: 安装 libayatana-appindicator3-1 库
+          
+          Q: 中文显示为方块
+          A: 安装中文字体: sudo apt-get install fonts-wqy-microhei fonts-noto-cjk
+          README
+
       - name: Create tar.gz archive
         run: |
           cd app/build/linux/x64/release/bundle
@@ -367,3 +746,19 @@ jobs:
           name: linux-portable
           path: LocalSend_Linux_Portable.tar.gz
           retention-days: 30
+
+      - name: Verify Linux bundle contents
+        shell: bash
+        run: |
+          echo "=== Linux Bundle Contents ==="
+          BUNDLE_DIR="app/build/linux/x64/release/bundle"
+          find "$BUNDLE_DIR" -type f | sort | while read -r f; do
+            size=$(stat -c%s "$f" 2>/dev/null || echo "?")
+            echo "  $(echo $f | sed "s|$BUNDLE_DIR/||") ($size bytes)"
+          done
+          echo ""
+          echo "=== Bundled libraries ==="
+          ls -la "$BUNDLE_DIR/lib/" 2>/dev/null || echo "No lib directory"
+          echo ""
+          echo "=== Checking critical dependencies ==="
+          ldd "$BUNDLE_DIR/localsend_app" 2>/dev/null | grep -E "not found|=>" | head -30

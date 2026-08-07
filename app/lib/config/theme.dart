@@ -12,7 +12,12 @@ final _borderRadius = BorderRadius.circular(5);
 
 ThemeData getTheme(ColorMode colorMode, Color customColor, Brightness brightness, DynamicColors? dynamicColors) {
   if (colorMode == ColorMode.yaru) {
-    return _getYaruTheme(brightness);
+    try {
+      return _getYaruTheme(brightness);
+    } catch (e) {
+      // Fallback to localsend theme if yaru fails (e.g., on Kylin OS / non-GNOME desktops)
+      colorMode = ColorMode.localsend;
+    }
   }
 
   final colorScheme = _determineColorScheme(colorMode, customColor, brightness, dynamicColors);
@@ -38,12 +43,14 @@ ThemeData getTheme(ColorMode colorMode, Color customColor, Brightness brightness
       _ => 'Segoe UI Variable Display',
     };
   } else if (checkPlatform([TargetPlatform.linux])) {
+    // Linux font with fallback chain for Kylin OS compatibility
+    // Kylin OS may not have Noto fonts installed, so we provide fallbacks
     fontFamily = switch (LocaleSettings.currentLocale) {
-      AppLocale.ja => 'Noto Sans CJK JP',
-      AppLocale.ko => 'Noto Sans CJK KR',
-      AppLocale.zhCn => 'Noto Sans CJK SC',
-      AppLocale.zhHk || AppLocale.zhTw => 'Noto Sans CJK TC',
-      _ => 'Noto Sans',
+      AppLocale.ja => 'Noto Sans CJK JP, Noto Sans JP, WenQuanYi Micro Hei, sans-serif',
+      AppLocale.ko => 'Noto Sans CJK KR, Noto Sans KR, WenQuanYi Micro Hei, sans-serif',
+      AppLocale.zhCn => 'Noto Sans CJK SC, Noto Sans SC, WenQuanYi Micro Hei, Microsoft YaHei, sans-serif',
+      AppLocale.zhHk || AppLocale.zhTw => 'Noto Sans CJK TC, Noto Sans TC, WenQuanYi Micro Hei, Microsoft JhengHei, sans-serif',
+      _ => 'Noto Sans, WenQuanYi Micro Hei, sans-serif',
     };
   } else {
     fontFamily = null;

@@ -21,6 +21,22 @@ Future<void> initTray() async {
   if (!checkPlatformHasTray()) {
     return;
   }
+
+  // On Linux, check if tray libraries are available before initializing
+  if (checkPlatform([TargetPlatform.linux])) {
+    try {
+      // Check if libayatana-appindicator3 or libappindicator3 is available
+      final result = await Process.run('ldconfig', ['-p']);
+      final output = result.stdout.toString();
+      if (!output.contains('libayatana-appindicator3') && !output.contains('libappindicator3')) {
+        _logger.warning('Tray libraries (libayatana-appindicator3/libappindicator3) not found on system. Tray will be disabled.');
+        return;
+      }
+    } catch (e) {
+      _logger.warning('Could not check tray library availability, proceeding anyway', e);
+    }
+  }
+
   try {
     if (checkPlatform([TargetPlatform.windows])) {
       await tm.trayManager.setIcon(Assets.img.logo);
