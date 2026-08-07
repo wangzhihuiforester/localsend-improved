@@ -411,8 +411,10 @@ class ServerService extends Notifier<ServerState?> {
 
     // 构建 RegisterDto，将聊天消息编码在 alias 字段中
     // 使用 LS_CHAT: 前缀标识这是一条聊天消息而非普通注册请求
+    // 新协议格式: LS_CHAT:<senderAlias>\x1F<message>
+    // \x1F 是 ASCII Unit Separator，不会出现在正常聊天消息中
     final payload = rust_model.RegisterDto(
-      alias: 'LS_CHAT:${action.message}',
+      alias: 'LS_CHAT:${action.alias}\x1F${action.message}',
       version: originDevice.version,
       deviceModel: originDevice.deviceModel,
       deviceType: originDevice.deviceType.toRust(),

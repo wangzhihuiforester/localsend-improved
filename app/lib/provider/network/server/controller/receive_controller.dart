@@ -15,6 +15,7 @@ import 'package:localsend_app/provider/favorites_provider.dart';
 import 'package:localsend_app/provider/file_transfer_provider.dart';
 import 'package:localsend_app/provider/http_provider.dart';
 import 'package:localsend_app/provider/logging/discovery_logs_provider.dart';
+import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
 import 'package:localsend_app/provider/network/send_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
 import 'package:localsend_app/provider/network/server/server_utils.dart';
@@ -61,10 +62,26 @@ class ReceiveController {
 
     // 检查是否为聊天消息（通过 LS_CHAT: 前缀标识）
     if (event.info.alias.startsWith('LS_CHAT:')) {
-      final message = event.info.alias.substring(8); // 去掉 "LS_CHAT:" 前缀
+      final content = event.info.alias.substring(8); // 去掉 "LS_CHAT:" 前缀
       final senderFingerprint = event.info.fingerprint;
-      final senderAlias = server.ref.read(favoritesProvider).firstWhereOrNull((e) => e.fingerprint == senderFingerprint)?.alias ?? '未知设备';
-      
+
+      // 新协议格式: <senderAlias>\x1F<message>
+      // 旧协议格式: <message>（无发送者别名，需要从设备列表查找）
+      final separatorIndex = content.indexOf('\x1F');
+      String senderAlias;
+      String message;
+      if (separatorIndex >= 0) {
+        senderAlias = content.substring(0, separatorIndex);
+        message = content.substring(separatorIndex + 1);
+      } else {
+        // 旧格式兼容：没有嵌入发送者别名
+        message = content;
+        // 尝试从附近设备列表和收藏列表中查找别名
+        senderAlias = server.ref.read(nearbyDevicesProvider).devices[senderFingerprint]?.alias
+            ?? server.ref.read(favoritesProvider).firstWhereOrNull((e) => e.fingerprint == senderFingerprint)?.alias
+            ?? '未知设备';
+      }
+
       server.ref.notifier(chatProvider).addIncomingMessage(
         deviceAlias: senderAlias,
         deviceFingerprint: senderFingerprint,
