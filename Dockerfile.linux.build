@@ -3,7 +3,6 @@
 FROM ubuntu:20.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -19,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3-dev libnspr4-dev \
     libatk1.0-dev libatk-bridge2.0-dev \
     libcups2-dev libdbus-1-dev \
-    libpango1.0-dev libpangocairo-1.0-dev libcairo2-dev libcairo-gobject2-dev \
+    libpango1.0-dev libcairo2-dev \
     libfribidi-dev libthai-dev \
     libfontconfig1-dev libfreetype6-dev \
     libgdk-pixbuf2.0-dev \
