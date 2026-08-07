@@ -59,12 +59,74 @@ jobs:
         shell: pwsh
         run: |
           $release = "app/build/windows/x64/runner/Release"
-          $dllSource = "support/build/windows/x64"
-          if (Test-Path "$dllSource/msvcp140.dll") {
-            Copy-Item "$dllSource/msvcp140.dll" "$release/"
-            Copy-Item "$dllSource/vcruntime140.dll" "$release/"
-            Copy-Item "$dllSource/vcruntime140_1.dll" "$release/"
+          
+          # Try to find VCRedist DLLs from multiple sources on the runner
+          $dllFound = $false
+          
+          # Method 1: Search Visual Studio Redist directory
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            $vsPath = & $vswhere -latest -property installationPath
+            $redistBase = Join-Path $vsPath "VC\Redist\MSVC"
+            if (Test-Path $redistBase) {
+              $latestRedist = Get-ChildItem $redistBase -Directory | Sort-Object Name -Descending | Select-Object -First 1
+              $crtPath = Join-Path $latestRedist.FullName "x64\Microsoft.VC143.CRT"
+              Write-Host "Checking VS Redist path: $crtPath"
+              if (Test-Path (Join-Path $crtPath "msvcp140.dll")) {
+                Copy-Item (Join-Path $crtPath "msvcp140.dll") "$release\" -Force
+                Copy-Item (Join-Path $crtPath "vcruntime140.dll") "$release\" -Force
+                Copy-Item (Join-Path $crtPath "vcruntime140_1.dll") "$release\" -Force
+                $dllFound = $true
+                Write-Host "Copied VCRedist DLLs from Visual Studio installation"
+              }
+            }
           }
+          
+          # Method 2: Search System32 (VCRedist is pre-installed on runners)
+          if (-not $dllFound) {
+            $sysDir = [System.Environment]::SystemDirectory
+            Write-Host "Checking System32: $sysDir"
+            if (Test-Path (Join-Path $sysDir "msvcp140.dll")) {
+              Copy-Item (Join-Path $sysDir "msvcp140.dll") "$release\" -Force
+              Copy-Item (Join-Path $sysDir "vcruntime140.dll") "$release\" -Force
+              if (Test-Path (Join-Path $sysDir "vcruntime140_1.dll")) {
+                Copy-Item (Join-Path $sysDir "vcruntime140_1.dll") "$release\" -Force
+              }
+              $dllFound = $true
+              Write-Host "Copied VCRedist DLLs from System32"
+            }
+          }
+          
+          # Method 3: Download from Microsoft official source
+          if (-not $dllFound) {
+            Write-Host "Downloading VCRedist installer from Microsoft..."
+            $installerPath = "$env:TEMP\vc_redist.x64.exe"
+            Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -OutFile $installerPath
+            # Extract DLLs from installer using 7-Zip
+            $sevenZip = "C:\Program Files\7-Zip\7z.exe"
+            if (Test-Path $sevenZip) {
+              & $sevenZip x $installerPath -o"$env:TEMP\vcredist_extract" -y
+              $dllPath = Get-ChildItem -Path "$env:TEMP\vcredist_extract" -Recurse -Filter "msvcp140.dll" | Select-Object -First 1
+              if ($dllPath) {
+                $dllDir = $dllPath.DirectoryName
+                Copy-Item (Join-Path $dllDir "msvcp140.dll") "$release\" -Force
+                Copy-Item (Join-Path $dllDir "vcruntime140.dll") "$release\" -Force
+                if (Test-Path (Join-Path $dllDir "vcruntime140_1.dll")) {
+                  Copy-Item (Join-Path $dllDir "vcruntime140_1.dll") "$release\" -Force
+                }
+                $dllFound = $true
+                Write-Host "Copied VCRedist DLLs from downloaded installer"
+              }
+            }
+          }
+          
+          if ($dllFound) {
+            Write-Host "VCRedist DLLs successfully added to Release folder"
+          } else {
+            Write-Host "WARNING: Could not find VCRedist DLLs. The app may not run without VC++ Redistributable installed."
+          }
+          
+          # Create settings.json if not exists
           if (-not (Test-Path "$release/settings.json")) {
             '{}' | Out-File "$release/settings.json" -Encoding utf8
           }
