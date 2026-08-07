@@ -55,3 +55,7 @@
 # Suppress warnings
 -dontwarn javax.lang.model.**
 -dontwarn com.google.errorprone.**
+
+# Suppress missing classes from Google Play Core (not used in FOSS build)
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
