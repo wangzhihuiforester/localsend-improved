@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git unzip xz-utils zip ca-certificates \
     clang cmake ninja-build pkg-config patchelf \
+    binutils lld lld-10 \
     libgtk-3-dev liblzma-dev libglu1-mesa \
     libayatana-appindicator3-dev libsecret-1-dev libjsoncpp-dev \
     libglib2.0-dev \
@@ -30,9 +31,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Add GCC 12 PPA for libstdc++-12-dev (required by newer Flutter)
+# Also create symlinks for LLVM linker (Flutter looks for ld.lld/ld in LLVM dir)
 RUN add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
     apt-get update && apt-get install -y --no-install-recommends libstdc++-12-dev && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    ln -sf /usr/bin/ld.lld /usr/lib/llvm-10/bin/ld.lld 2>/dev/null || true && \
+    ln -sf /usr/bin/ld /usr/lib/llvm-10/bin/ld 2>/dev/null || true && \
+    ls -la /usr/lib/llvm-10/bin/ld* 2>/dev/null || echo "Warning: LLVM bin dir not found"
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.93.1
