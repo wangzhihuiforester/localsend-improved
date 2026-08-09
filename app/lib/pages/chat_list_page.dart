@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:localsend_app/pages/chat_page.dart';
 import 'package:localsend_app/provider/chat_provider.dart';
 import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
@@ -26,7 +27,14 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
     final chatState = ref.watch(chatProvider);
 
     // 构建可聊天设备列表：包含已有聊天记录的设备和附近在线的设备
-    final chatDevices = <String, ({String alias, bool isOnline, int messageCount, bool unread})>{};
+    final chatDevices = <String, ({
+      String alias,
+      bool isOnline,
+      int messageCount,
+      bool unread,
+      String? lastMessagePreview,
+      DateTime? lastMessageTime,
+    })>{};
 
     // 添加已有聊天记录的设备
     for (final entry in chatState.messagesByDevice.entries) {
@@ -34,11 +42,14 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
       final isOnline = nearbyDevices.any((d) => d.fingerprint == fingerprint);
       final unread = chatState.unreadDevices.contains(fingerprint);
       final alias = entry.value.isNotEmpty ? entry.value.last.deviceAlias : fingerprint.substring(0, 8);
+      final lastMsg = entry.value.isNotEmpty ? entry.value.last : null;
       chatDevices[fingerprint] = (
         alias: alias,
         isOnline: isOnline,
         messageCount: entry.value.length,
         unread: unread,
+        lastMessagePreview: lastMsg?.message,
+        lastMessageTime: lastMsg?.timestamp,
       );
     }
 
@@ -50,13 +61,29 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
           isOnline: true,
           messageCount: 0,
           unread: false,
+          lastMessagePreview: null,
+          lastMessageTime: null,
         );
       }
     }
 
-    // 按在线状态排序（在线设备排在前面）
+    // 排序：有聊天记录的按最后消息时间降序，无记录的在线设备排后面
     final sortedDevices = chatDevices.entries.toList()
-      ..sort((a, b) => b.value.isOnline.toString().compareTo(a.value.isOnline.toString()));
+      ..sort((a, b) {
+        // 有消息记录的排在前面
+        final aHasMessages = a.value.messageCount > 0;
+        final bHasMessages = b.value.messageCount > 0;
+        if (aHasMessages && !bHasMessages) return -1;
+        if (!aHasMessages && bHasMessages) return 1;
+        // 都有消息记录的，按最后消息时间降序
+        if (aHasMessages && bHasMessages) {
+          final aTime = a.value.lastMessageTime!;
+          final bTime = b.value.lastMessageTime!;
+          return bTime.compareTo(aTime);
+        }
+        // 都没有消息记录的，在线的排前面
+        return b.value.isOnline.toString().compareTo(a.value.isOnline.toString());
+      });
 
     return Scaffold(
       appBar: AppBar(
@@ -130,7 +157,14 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
                   ),
                   title: Row(
                     children: [
-                      Text(info.alias),
+                      Text(
+                        info.alias,
+                        style: TextStyle(
+                          color: info.isOnline
+                              ? null
+                              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
                       if (info.isOnline)
                         Container(
                           margin: const EdgeInsets.only(left: 8),
@@ -140,12 +174,55 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
                             color: Colors.green,
                             shape: BoxShape.circle,
                           ),
+                        )
+                      else if (info.messageCount > 0)
+                        Container(
+                          margin: const EdgeInsets.only(left: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade400,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '离线',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
                         ),
                     ],
                   ),
-                  subtitle: info.messageCount > 0
-                      ? Text('${info.messageCount} 条消息')
-                      : Text(info.isOnline ? '在线' : '离线'),
+                  subtitle: info.lastMessagePreview != null
+                      ? Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                info.lastMessagePreview!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ),
+                            if (info.lastMessageTime != null)
+                              Text(
+                                _formatTime(info.lastMessageTime!),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                                ),
+                              ),
+                          ],
+                        )
+                      : Text(
+                          info.isOnline ? '在线' : '离线',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
                   trailing: info.unread
                       ? Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -170,9 +247,36 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
                       ),
                     );
                   },
+                  onLongPress: info.lastMessagePreview != null
+                      ? () {
+                          Clipboard.setData(
+                            ClipboardData(text: '[${_formatTime(info.lastMessageTime!)}] ${info.alias}: ${info.lastMessagePreview}'),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('已复制最后一条消息'), duration: Duration(seconds: 1)),
+                          );
+                        }
+                      : null,
                 );
               },
             ),
     );
+  }
+
+  /// 格式化时间显示。
+  /// 今天的消息显示 HH:mm，昨天的显示"昨天"，更早的显示 MM/dd。
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(time.year, time.month, time.day);
+    final diff = today.difference(messageDate).inDays;
+
+    if (diff == 0) {
+      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    } else if (diff == 1) {
+      return '昨天';
+    } else {
+      return '${time.month.toString().padLeft(2, '0')}/${time.day.toString().padLeft(2, '0')}';
+    }
   }
 }

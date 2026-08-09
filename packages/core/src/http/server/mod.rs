@@ -386,6 +386,19 @@ async fn serve_connection(
     tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
     app_state: AppState,
 ) {
+    // 局域网传输优化：关闭 Nagle 算法，避免小包延迟叠加；
+    // 同时放大 HTTP/2 流控窗口，让大文件在万兆/千兆局域网下保持高吞吐。
+    let _ = tcp_stream.set_nodelay(true);
+
+    let http2_builder = {
+        let mut builder = Builder::new(TokioExecutor::new());
+        builder
+            .http2()
+            .initial_stream_window_size(8 * 1024 * 1024)
+            .initial_connection_window_size(16 * 1024 * 1024);
+        builder
+    };
+
     let res = match tls_acceptor {
         Some(tls_acceptor) => {
             let tls_stream = match tls_acceptor.accept(tcp_stream).await {
@@ -410,7 +423,7 @@ async fn serve_connection(
                 }
             };
 
-            Builder::new(TokioExecutor::new())
+            http2_builder
                 .serve_connection(
                     TokioIo::new(tls_stream),
                     hyper::service::service_fn(move |mut req: Request<Incoming>| {
@@ -423,7 +436,7 @@ async fn serve_connection(
                 .await
         }
         None => {
-            Builder::new(TokioExecutor::new())
+            http2_builder
                 .serve_connection(
                     TokioIo::new(tcp_stream),
                     hyper::service::service_fn(move |mut req: Request<Incoming>| {

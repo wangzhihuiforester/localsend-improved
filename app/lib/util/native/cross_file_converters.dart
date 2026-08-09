@@ -22,8 +22,8 @@ class CrossFileConverters {
       asset: asset,
       path: file.path,
       bytes: null,
-      lastModified: file.lastModifiedSync().toUtc(),
-      lastAccessed: file.lastAccessedSync().toUtc(),
+      lastModified: (await file.lastModified()).toUtc(),
+      lastAccessed: (await file.lastAccessed()).toUtc(),
     );
   }
 
@@ -50,8 +50,8 @@ class CrossFileConverters {
       asset: null,
       path: file.path,
       bytes: null,
-      lastModified: file.lastModifiedSync().toUtc(),
-      lastAccessed: file.lastAccessedSync().toUtc(),
+      lastModified: (await file.lastModified()).toUtc(),
+      lastAccessed: (await file.lastAccessed()).toUtc(),
     );
   }
 
@@ -80,8 +80,8 @@ class CrossFileConverters {
       asset: null,
       path: file.path,
       bytes: null,
-      lastModified: file.lastModifiedSync().toUtc(),
-      lastAccessed: file.lastAccessedSync().toUtc(),
+      lastModified: (await file.lastModified()).toUtc(),
+      lastAccessed: (await file.lastAccessed()).toUtc(),
     );
   }
 

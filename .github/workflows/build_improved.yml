@@ -754,3 +754,46 @@ jobs:
           echo "=== Checking critical dependencies ==="
           ldd "$BUNDLE_DIR/localsend_app" 2>/dev/null | grep -E "not found|=>" | head -30
           true
+
+  publish_release:
+    name: Publish GitHub Release
+    needs: [build_windows, build_apk, build_linux]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: ver
+        run: |
+          VER=$(grep '^version:' app/pubspec.yaml | awk '{print $2}' | sed 's/^v//' | sed 's/+.*//')
+          echo "tag=v${VER}-r${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "name=v${VER} 构建 #${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.name }}
+          body: |
+            LocalSend 改进版自动构建产物
+
+            - Windows 绿色免安装版 (zip)
+            - Windows 安装包 (exe)
+            - Android APK（按 ABI 拆分: arm64-v8a / x86_64）
+            - Linux 便携版 (tar.gz，银河麒麟兼容)
+
+            APK 已按 CPU 架构拆分以减小单包体积，请按设备架构选择安装。
+          files: |
+            artifacts/windows-portable-zip/**
+            artifacts/windows-exe-installer/**
+            artifacts/android-apk-arm64/**
+            artifacts/android-apk-x64/**
+            artifacts/linux-portable/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

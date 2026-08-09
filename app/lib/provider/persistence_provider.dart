@@ -96,6 +96,10 @@ const _verifyChecksums = 'ls_verify_checksums';
 const _advancedSettingsKey = 'ls_advanced_settings';
 const _whatsNewKey = 'ls_whats_new';
 
+// Chat history (persisted as JSON string)
+const _chatHistoryKey = 'ls_chat_history';
+const _chatUnreadKey = 'ls_chat_unread';
+
 final persistenceProvider = Provider<PersistenceService>((ref) {
   throw Exception('persistenceProvider not initialized');
 });
@@ -270,6 +274,29 @@ class PersistenceService {
   Future<void> setFavorites(List<FavoriteDevice> entries) async {
     final favoritesRaw = entries.map((entry) => jsonEncode(entry.toJson())).toList();
     await _prefs.setStringList(_favorites, favoritesRaw);
+  }
+
+  // ---- Chat history persistence ----
+
+  /// 获取聊天记录的原始 JSON 字符串。
+  /// 返回 null 表示没有存储过聊天记录。
+  String? getChatHistoryRaw() {
+    return _prefs.getString(_chatHistoryKey);
+  }
+
+  /// 保存聊天记录的原始 JSON 字符串。
+  Future<void> setChatHistoryRaw(String json) async {
+    await _prefs.setString(_chatHistoryKey, json);
+  }
+
+  /// 获取未读聊天设备指纹列表。
+  List<String>? getChatUnreadDevices() {
+    return _prefs.getStringList(_chatUnreadKey);
+  }
+
+  /// 保存未读聊天设备指纹列表。
+  Future<void> setChatUnreadDevices(List<String> devices) async {
+    await _prefs.setStringList(_chatUnreadKey, devices);
   }
 
   String getShowToken() {

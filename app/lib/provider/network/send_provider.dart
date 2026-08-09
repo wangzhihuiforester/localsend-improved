@@ -36,6 +36,14 @@ import 'package:uuid/uuid.dart';
 const _uuid = Uuid();
 final _logger = Logger('Send');
 
+/// 大于该大小的文件在发送前跳过 SHA-256 预计算。
+///
+/// 原因：校验和需要在传输前把整个文件完整读一遍（30GB 文件就要先读 30GB），
+/// 这会让"开始传输"前长时间卡顿，并产生一次额外的全量磁盘读取。
+/// 跳过超大文件的校验和可以立即开始传输，速度与体感都大幅提升。
+/// 校验和是协议可选项（FileDto.sha256 可缺省），接收端此时不做完整性校验。
+const _skipHashForFilesLargerThan = 1024 * 1024 * 1024; // 1 GiB
+
 /// This provider manages sending files to other devices.
 ///
 /// In contrast to [serverProvider], this provider does not manage a server.
@@ -167,32 +175,39 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
       _hashCancelTokens[sessionId] = hashCancelToken;
       try {
         for (final (:id, :file) in selectedFiles) {
-          try {
-            hashes[id] = await calculateFileHash(
-              path: file.path,
-              bytes: file.bytes,
-              cancelToken: hashCancelToken,
-              onProgress: (bytes) {
-                if (state[sessionId] == null) {
-                  // session has been canceled while calculating the checksums
-                  return;
-                }
-                ref
-                    .notifier(fileTransferProvider)
-                    .setProgress(
-                      sessionId: sessionId,
-                      fileId: id,
-                      progress: file.size == 0 ? 1 : (bytes / file.size).clamp(0, 1),
-                    );
-              },
-            );
-          } catch (e) {
-            if (state[sessionId] != null) {
-              // Sending the checksum is optional, so a file that cannot be read
-              // here still gets a chance to be sent.
-              // Errors caused by the cancellation are not logged.
-              _logger.warning('Could not calculate the checksum of ${file.name}', e);
+          // 超大文件跳过校验和预计算，避免传输前全量读取导致卡顿。
+          // 校验和是协议可选项，缺失时接收端跳过完整性校验。
+          final skipHash = file.size > _skipHashForFilesLargerThan;
+          if (!skipHash) {
+            try {
+              hashes[id] = await calculateFileHash(
+                path: file.path,
+                bytes: file.bytes,
+                cancelToken: hashCancelToken,
+                onProgress: (bytes) {
+                  if (state[sessionId] == null) {
+                    // session has been canceled while calculating the checksums
+                    return;
+                  }
+                  ref
+                      .notifier(fileTransferProvider)
+                      .setProgress(
+                        sessionId: sessionId,
+                        fileId: id,
+                        progress: file.size == 0 ? 1 : (bytes / file.size).clamp(0, 1),
+                      );
+                },
+              );
+            } catch (e) {
+              if (state[sessionId] != null) {
+                // Sending the checksum is optional, so a file that cannot be read
+                // here still gets a chance to be sent.
+                // Errors caused by the cancellation are not logged.
+                _logger.warning('Could not calculate the checksum of ${file.name}', e);
+              }
             }
+          } else {
+            _logger.info('Skipped checksum for large file ${file.name} (${file.size} bytes)');
           }
 
           if (state[sessionId] == null) {

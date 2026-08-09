@@ -4,11 +4,13 @@ use std::path::PathBuf;
 use tokio::sync::mpsc;
 
 /// Channel capacity used when normalizing a file-backed [`FileContent`] into a stream.
-/// 降低为 8 以减少内存占用，同时仍保持流式传输的背压。
-const FILE_CHANNEL_CAPACITY: usize = 8;
+/// 增大到 16：配合 1MB 分块在内存占用与吞吐之间取得平衡，
+/// 相比原来的 8 显著减少等待时间，提升局域网大文件传输速度。
+const FILE_CHANNEL_CAPACITY: usize = 16;
 
 /// Buffer size used when reading a file into chunks.
-const READ_BUFFER_SIZE: usize = 512 * 1024;
+/// 增大到 1MB：减少磁盘读取次数与跨线程传递次数，大幅提升吞吐。
+const READ_BUFFER_SIZE: usize = 1024 * 1024;
 
 /// The binary content of a file provided by the application for a transfer.
 ///

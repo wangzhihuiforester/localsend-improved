@@ -8,13 +8,14 @@ use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
 
 /// Channel capacity for file upload chunks (provides backpressure).
-/// 降低为 8 以减少内存占用，同时仍保持足够的背压缓冲。
-const UPLOAD_CHANNEL_CAPACITY: usize = 8;
+/// 增大到 16：为接收端提供更大的流水线缓冲，减少 TCP 等待，
+/// 在内存占用可控（最多 16 个 1MB 分块 ≈ 16MB）的前提下提升吞吐。
+const UPLOAD_CHANNEL_CAPACITY: usize = 16;
 
 /// Size of the write buffer that coalesces incoming body chunks (typically one
 /// TLS record, ~16 KiB) into larger file writes.
-/// 保持 512KB 写缓冲以平衡 IO 效率和内存占用。
-const WRITE_BUFFER_SIZE: usize = 512 * 1024;
+/// 增大到 1MB：减少小写盘次数，提升大文件落盘速度。
+const WRITE_BUFFER_SIZE: usize = 1024 * 1024;
 
 /// Where the content of an uploaded file should go, decided by the application.
 #[derive(Debug)]

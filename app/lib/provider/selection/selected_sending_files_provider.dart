@@ -175,16 +175,18 @@ class AddDirectoryAction extends AsyncReduxAction<SelectedSendingFilesNotifier, 
 
         _logger.info('Add file $relative');
 
+        // 使用异步 IO 读取元数据，避免同步 IO 阻塞 UI 线程
+        // （目录包含大量大文件时，同步 stat 也会造成明显卡顿）。
         final file = CrossFile(
           name: relative,
           fileType: relative.guessFileType(),
-          size: entity.lengthSync(),
+          size: await entity.length(),
           thumbnail: null,
           asset: null,
           path: entity.path,
           bytes: null,
-          lastModified: entity.lastModifiedSync().toUtc(),
-          lastAccessed: entity.lastAccessedSync().toUtc(),
+          lastModified: (await entity.lastModified()).toUtc(),
+          lastAccessed: (await entity.lastAccessed()).toUtc(),
         );
 
         final isAlreadySelect = state.any((element) => element.isSameFile(otherFile: file));

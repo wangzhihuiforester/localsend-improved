@@ -14,6 +14,7 @@ import 'package:localsend_app/pages/home_page_controller.dart';
 import 'package:localsend_app/pages/whats_new_page.dart';
 import 'package:localsend_app/provider/animation_provider.dart';
 import 'package:localsend_app/provider/app_arguments_provider.dart';
+import 'package:localsend_app/provider/chat_provider.dart';
 import 'package:localsend_app/provider/device_info_provider.dart';
 import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
@@ -230,6 +231,13 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
     ref.redux(nearbyDevicesProvider).dispatchAsync(StartDiscoveryListener()); // ignore: unawaited_futures
   } catch (e) {
     _logger.warning('Starting discovery listener failed', e);
+  }
+
+  // 加载持久化的聊天记录，确保即使设备离线也能查看历史聊天
+  try {
+    await ref.notifier(chatProvider).loadFromStorage();
+  } catch (e) {
+    _logger.warning('Loading chat history failed', e);
   }
 
   // WebRTC 已禁用：需要外部信令服务器和 STUN 服务器，

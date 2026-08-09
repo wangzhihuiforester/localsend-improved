@@ -281,7 +281,12 @@ pub(super) fn create_reqwest_client(
     let mut builder = reqwest::Client::builder()
         .tls_backend_preconfigured(tls_config)
         .tls_info(true)
-        .dns_resolver(Arc::new(ScopedHostResolver));
+        .dns_resolver(Arc::new(ScopedHostResolver))
+        // 局域网传输优化：关闭 Nagle 算法 + 放大 HTTP/2 流控窗口，
+        // 与接收端（server/mod.rs）保持一致，提升大文件上传吞吐。
+        .tcp_nodelay(true)
+        .http2_initial_stream_window_size(8 * 1024 * 1024)
+        .http2_initial_connection_window_size(16 * 1024 * 1024);
 
     if let Some(timeout) = timeout {
         builder = builder.timeout(timeout);

@@ -14,8 +14,10 @@ import 'package:refena_flutter/refena_flutter.dart';
 import 'package:typed_isolates/typed_isolates.dart';
 
 /// How many files of a [HttpUploadFilesTask] are uploaded in parallel.
-// 降低并发为 1：减少内存占用，避免大文件传输时因并发读写导致卡死。
-const _concurrency = 1;
+/// 恢复为 2（与上游 LocalSend 一致）：多个小文件可并行上传，显著提升整体吞吐。
+/// 文件内容以 1MB 分块流式发送（非整体读入内存），
+/// 因此并发 2 的峰值内存仍然可控（约 2 * 16 * 1MB ≈ 32MB）。
+const _concurrency = 2;
 
 /// How often a single file is uploaded at most when the receiver keeps
 /// rejecting it with a checksum mismatch (HTTP 422).
