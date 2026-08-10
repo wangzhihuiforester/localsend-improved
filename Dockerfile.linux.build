@@ -84,13 +84,15 @@ RUN cd app && dart run slang || true
 # Build Linux release
 RUN cd app && flutter build linux --release
 
-# Run the library bundling script
+# Run the library bundling script (architecture independent: locate the bundle dir)
 RUN chmod +x /app/scripts/bundle_linux_libs.sh && \
-    /app/scripts/bundle_linux_libs.sh /app/build/linux/x64/release/bundle
+    BUNDLE_DIR=$(find /app/build/linux -type d -name bundle | head -1) && \
+    [ -n "$BUNDLE_DIR" ] && echo "BUNDLE_DIR=$BUNDLE_DIR" && \
+    /app/scripts/bundle_linux_libs.sh "$BUNDLE_DIR"
 
 # Verify the final build
 RUN echo "=== Final verification ===" && \
-    BUNDLE_DIR="/app/build/linux/x64/release/bundle" && \
+    BUNDLE_DIR=$(find /app/build/linux -type d -name bundle | head -1) && \
     echo "Bundle contents:" && \
     find "$BUNDLE_DIR" -type f | sort && \
     echo "" && \
@@ -134,8 +136,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -f
 
-# Copy the bundled application
-COPY --from=builder /app/build/linux/x64/release/bundle /app/bundle
+# Copy the bundled application (architecture independent bundle dir)
+RUN BUNDLE_DIR=$(find /app/build/linux -type d -name bundle | head -1) && \
+    mkdir -p /app/final-bundle && cp -r "$BUNDLE_DIR/." /app/final-bundle/
+COPY --from=builder /app/final-bundle /app/bundle
 
 WORKDIR /app/bundle
 
