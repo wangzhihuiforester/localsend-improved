@@ -1,4 +1,4 @@
-# Dockerfile for building LocalSend Linux with maximum compatibility
+﻿# Dockerfile for building LocalSend Linux with maximum compatibility
 # Uses Ubuntu 20.04 (glibc 2.31) as base for Kylin OS compatibility
 FROM ubuntu:20.04 AS builder
 
@@ -86,13 +86,13 @@ RUN cd app && flutter build linux --release
 
 # Run the library bundling script (architecture independent: locate the bundle dir)
 RUN chmod +x /app/scripts/bundle_linux_libs.sh && \
-    BUNDLE_DIR=$(find /app/build/linux -type d -name bundle | head -1) && \
+    BUNDLE_DIR=$(find /app -type d -name bundle | head -1) && \
     [ -n "$BUNDLE_DIR" ] && echo "BUNDLE_DIR=$BUNDLE_DIR" && \
     /app/scripts/bundle_linux_libs.sh "$BUNDLE_DIR"
 
 # Verify the final build
 RUN echo "=== Final verification ===" && \
-    BUNDLE_DIR=$(find /app/build/linux -type d -name bundle | head -1) && \
+    BUNDLE_DIR=$(find /app -type d -name bundle | head -1) && \
     echo "Bundle contents:" && \
     find "$BUNDLE_DIR" -type f | sort && \
     echo "" && \
@@ -104,7 +104,7 @@ RUN echo "=== Final verification ===" && \
 
 # Stage the bundle at a fixed path inside the builder, so the runtime stage
 # can COPY it regardless of the target architecture (x64 vs arm64).
-RUN BUNDLE_DIR=$(find /app/build/linux -type d -name bundle | head -1) && \
+RUN BUNDLE_DIR=$(find /app -type d -name bundle | head -1) && \
     [ -n "$BUNDLE_DIR" ] && \
     mkdir -p /app/final-bundle && \
     cp -r "$BUNDLE_DIR/." /app/final-bundle/ && \
