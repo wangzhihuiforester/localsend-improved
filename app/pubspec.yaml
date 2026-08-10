@@ -109,5 +109,10 @@ flutter:
     - assets/img/
     - assets/CHANGELOG.md
 
+  fonts:
+    - family: WenQuanYi Micro Hei
+      fonts:
+        - asset: assets/fonts/wqy-microhei.ttc
+
 flutter_gen:
   line_length: 150

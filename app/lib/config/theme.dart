@@ -43,15 +43,12 @@ ThemeData getTheme(ColorMode colorMode, Color customColor, Brightness brightness
       _ => 'Segoe UI Variable Display',
     };
   } else if (checkPlatform([TargetPlatform.linux])) {
-    // Linux font with fallback chain for Kylin OS compatibility
-    // Kylin OS may not have Noto fonts installed, so we provide fallbacks
-    fontFamily = switch (LocaleSettings.currentLocale) {
-      AppLocale.ja => 'Noto Sans CJK JP, Noto Sans JP, WenQuanYi Micro Hei, sans-serif',
-      AppLocale.ko => 'Noto Sans CJK KR, Noto Sans KR, WenQuanYi Micro Hei, sans-serif',
-      AppLocale.zhCn => 'Noto Sans CJK SC, Noto Sans SC, WenQuanYi Micro Hei, Microsoft YaHei, sans-serif',
-      AppLocale.zhHk || AppLocale.zhTw => 'Noto Sans CJK TC, Noto Sans TC, WenQuanYi Micro Hei, Microsoft JhengHei, sans-serif',
-      _ => 'Noto Sans, WenQuanYi Micro Hei, sans-serif',
-    };
+    // Linux: use the bundled open-source CJK font (WenQuanYi Micro Hei) directly.
+    // NOTE: Flutter's fontFamily does NOT support comma-separated fallback chains,
+    // so the previous "Noto Sans CJK SC, ..." list was treated as one unknown family
+    // and fell back to the default font, which has no CJK glyphs -> tofu boxes.
+    // The bundled font is guaranteed to exist on every platform (incl. Kylin).
+    fontFamily = 'WenQuanYi Micro Hei';
   } else {
     fontFamily = null;
   }
