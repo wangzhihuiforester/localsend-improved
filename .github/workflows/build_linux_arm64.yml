@@ -53,6 +53,79 @@ jobs:
           echo "=== File count ==="
           find /tmp/localsend-bundle-arm64 -type f | wc -l
 
+      - name: Create launch script (auto-install missing deps)
+        run: |
+          cat > /tmp/localsend-bundle-arm64/localsend.sh << 'LAUNCHER'
+          #!/bin/bash
+          ###############################################################################
+          # LocalSend Linux ARM64 (aarch64) 启动脚本 - 银河麒麟 V10 兼容
+          ###############################################################################
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          export LD_LIBRARY_PATH="${SCRIPT_DIR}/lib:${SCRIPT_DIR}:${LD_LIBRARY_PATH}"
+          if [ -z "$GDK_BACKEND" ]; then export GDK_BACKEND=x11; fi
+          export GTK_CSD=0
+
+          if [ ! -f "$SCRIPT_DIR/localsend_app" ]; then
+              echo "错误: 找不到 localsend_app, 请确认完整解压"
+              exit 1
+          fi
+          if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
+              echo "错误: 未检测到图形显示环境 (SSH 请使用 ssh -X)"
+              exit 1
+          fi
+          ARCH=$(uname -m)
+          if [ "$ARCH" != "aarch64" ] && [ "$ARCH" != "arm64" ]; then
+              echo "错误: 本程序为 aarch64 版本, 当前架构: $ARCH"
+              exit 1
+          fi
+
+          # 自动检测并安装缺失依赖
+          MISSING=$(ldd "$SCRIPT_DIR/localsend_app" 2>&1 | grep "not found" || true)
+          if [ -n "$MISSING" ]; then
+              echo "警告: 以下库缺失:"
+              echo "$MISSING"
+              echo "正在尝试安装..."
+              if command -v apt-get &>/dev/null; then
+                  sudo apt-get update 2>/dev/null || true
+                  for lib in $(echo "$MISSING" | awk '{print $1}'); do
+                      case "$lib" in
+                          libgtk-3.so.0)  sudo apt-get install -y libgtk-3-0 2>/dev/null || true ;;
+                          libglib-2.0.so.0) sudo apt-get install -y libglib2.0-0 2>/dev/null || true ;;
+                          libnss3.so)     sudo apt-get install -y libnss3 2>/dev/null || true ;;
+                          libsecret-1.so.0) sudo apt-get install -y libsecret-1-0 2>/dev/null || true ;;
+                          libayatana-appindicator3.so.1) sudo apt-get install -y libayatana-appindicator3-1 2>/dev/null || true ;;
+                          libgdk_pixbuf-2.0.so.0) sudo apt-get install -y libgdk-pixbuf2.0-0 2>/dev/null || true ;;
+                          libpango-1.0.so.0) sudo apt-get install -y libpango-1.0-0 2>/dev/null || true ;;
+                          libcairo.so.2)  sudo apt-get install -y libcairo2 2>/dev/null || true ;;
+                          libharfbuzz.so.0) sudo apt-get install -y libharfbuzz0b 2>/dev/null || true ;;
+                          libfontconfig.so.1) sudo apt-get install -y libfontconfig1 2>/dev/null || true ;;
+                          libX11.so.6)    sudo apt-get install -y libx11-6 2>/dev/null || true ;;
+                          *) echo "  未知库: $lib (请手动安装)" ;;
+                      esac
+                  done
+              elif command -v yum &>/dev/null; then
+                  sudo yum install -y gtk3 glib2 nss libsecret 2>/dev/null || true
+              fi
+              STILL_MISSING=$(ldd "$SCRIPT_DIR/localsend_app" 2>&1 | grep "not found" || true)
+              if [ -n "$STILL_MISSING" ]; then
+                  echo ""
+                  echo "错误: 以下库仍然缺失, 请手动安装:"
+                  echo "$STILL_MISSING"
+                  exit 1
+              fi
+          fi
+
+          chmod +x "$SCRIPT_DIR/localsend_app" 2>/dev/null || true
+          exec "$SCRIPT_DIR/localsend_app" "$@"
+          LAUNCHER
+          chmod +x /tmp/localsend-bundle-arm64/localsend.sh
+          cat > /tmp/localsend-bundle-arm64/README_LINUX_ARM64.txt << 'README'
+          LocalSend Linux ARM64 (aarch64) - 银河麒麟 V10 兼容版
+          运行: ./localsend.sh
+          系统要求: aarch64 架构, 图形环境 (X11/Wayland)
+          首次运行会自动检测并安装缺失依赖 (需 sudo 权限)
+          README
+
       - name: Verify architecture
         run: |
           file /tmp/localsend-bundle-arm64/localsend_app || true

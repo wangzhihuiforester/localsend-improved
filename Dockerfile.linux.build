@@ -84,11 +84,10 @@ RUN cd app && dart run slang || true
 # Build Linux release
 RUN cd app && flutter build linux --release
 
-# Run the library bundling script (architecture independent: locate the bundle dir)
-RUN chmod +x /app/scripts/bundle_linux_libs.sh && \
-    BUNDLE_DIR=$(find /app -type d -name bundle | head -1) && \
-    [ -n "$BUNDLE_DIR" ] && echo "BUNDLE_DIR=$BUNDLE_DIR" && \
-    /app/scripts/bundle_linux_libs.sh "$BUNDLE_DIR"
+# 依赖库不再内置打包(bundle_linux_libs.sh 在容器内不可靠):
+# 启动脚本 localsend.sh 会在目标机上自动检测并安装缺失的依赖库。
+RUN BUNDLE_DIR=$(find /app -type d -name bundle | head -1) && \
+    [ -n "$BUNDLE_DIR" ] && echo "BUNDLE_DIR=$BUNDLE_DIR" && ls "$BUNDLE_DIR" | head -20
 
 # Verify the final build
 RUN echo "=== Final verification ===" && \
