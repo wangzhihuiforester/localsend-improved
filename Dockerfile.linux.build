@@ -7,6 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git unzip xz-utils zip ca-certificates \
+    gcc g++ \
     clang llvm-10 lld lld-10 \
     cmake ninja-build pkg-config patchelf \
     binutils \
