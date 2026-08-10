@@ -102,6 +102,14 @@ RUN echo "=== Final verification ===" && \
     echo "Library dependency check:" && \
     ldd "$BUNDLE_DIR/localsend_app" 2>&1 | head -30
 
+# Stage the bundle at a fixed path inside the builder, so the runtime stage
+# can COPY it regardless of the target architecture (x64 vs arm64).
+RUN BUNDLE_DIR=$(find /app/build/linux -type d -name bundle | head -1) && \
+    [ -n "$BUNDLE_DIR" ] && \
+    mkdir -p /app/final-bundle && \
+    cp -r "$BUNDLE_DIR/." /app/final-bundle/ && \
+    echo "STAGED_BUNDLE:" && ls -la /app/final-bundle/
+
 # Create the runtime stage - minimal Ubuntu 20.04 with only runtime libs
 FROM ubuntu:20.04
 
@@ -136,9 +144,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -f
 
-# Copy the bundled application (architecture independent bundle dir)
-RUN BUNDLE_DIR=$(find /app/build/linux -type d -name bundle | head -1) && \
-    mkdir -p /app/final-bundle && cp -r "$BUNDLE_DIR/." /app/final-bundle/
+# Copy the staged bundle from the builder (architecture independent)
 COPY --from=builder /app/final-bundle /app/bundle
 
 WORKDIR /app/bundle
