@@ -71,7 +71,7 @@ dependencies:
   win32_registry: 2.1.0
   window_manager: 0.5.2
   windows_taskbar: 1.1.2
-  yaru: 10.2.0
+  yaru: ^9.0.0
 
 dev_dependencies:
   # Win7 分支: 以下版本兼容 Dart 3.4 (Flutter 3.22)
