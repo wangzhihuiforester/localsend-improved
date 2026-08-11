@@ -1,4 +1,4 @@
-name: localsend_app
+﻿name: localsend_app
 description: An open source cross-platform alternative to AirDrop
 homepage: https://localsend.org/
 publish_to: "none"
@@ -14,7 +14,7 @@ dependencies:
   collection: ^1.17.2 # allow newer versions, so it can compile with newer Flutter versions
   connectivity_plus: 7.2.0
   crypto: 3.0.7
-  dart_mappable: 4.8.0
+  dart_mappable: ^4.2.0
   desktop_drop: 0.7.1
   device_apps: 2.2.0
   device_info_plus: 12.4.0
@@ -76,7 +76,7 @@ dependencies:
 dev_dependencies:
   # Win7 分支: 以下版本兼容 Dart 3.4 (Flutter 3.22)
   build_runner: ^2.4.0
-  dart_mappable_builder: 4.8.0
+  dart_mappable_builder: ^4.2.0
   flutter_gen_runner: ^5.4.0
   flutter_lints: ^4.0.0
   freezed: ^2.5.0
