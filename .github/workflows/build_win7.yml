@@ -1,0 +1,134 @@
+name: Build Windows Win7 Compatible
+
+on:
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: "3.22.3"
+  RUST_VERSION: "1.85.0"
+
+jobs:
+  build_win7:
+    name: Windows Win7 Portable + Installer
+    runs-on: windows-2022
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter 3.22 (last Win7-compatible line)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Add Rust target
+        run: rustup target add x86_64-pc-windows-msvc
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Pub get
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build generated code
+        working-directory: app
+        run: |
+          dart run build_runner build --delete-conflicting-outputs || true
+          dart run slang || true
+
+      - name: Build Windows release
+        working-directory: app
+        run: flutter build windows --release
+
+      - name: Copy UCRT runtime (for Win7 compatibility)
+        shell: powershell
+        run: |
+          $release = "app/build/windows/x64/runner/Release"
+          $ucrtRedist = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Redist\*\ucrt\DLLs\x64" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($ucrtRedist) {
+            Get-ChildItem $ucrtRedist.FullName -Filter "*.dll" | ForEach-Object {
+              Copy-Item $_.FullName $release -Force
+            }
+            Write-Host "UCRT DLLs copied from $($ucrtRedist.FullName)"
+          } else {
+            Write-Host "WARNING: UCRT redist not found in Windows Kits"
+          }
+
+      - name: Verify Win7 compatibility hints
+        shell: powershell
+        run: |
+          $release = "app/build/windows/x64/runner/Release"
+          Get-ChildItem $release -Filter "*.dll" | ForEach-Object { Write-Host "DLL: $($_.Name)" }
+
+      - name: Package Windows portable zip
+        shell: powershell
+        run: |
+          $release = "app/build/windows/x64/runner/Release"
+          Compress-Archive -Path "$release/*" -DestinationPath "LocalSend_Windows_Portable_Win7.zip"
+          Get-Item "LocalSend_Windows_Portable_Win7.zip" | ForEach-Object { Write-Host "ZIP: $($_.Length) bytes" }
+
+      - name: Upload Win7 portable zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-win7-portable
+          path: LocalSend_Windows_Portable_Win7.zip
+          retention-days: 30
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup -y --no-progress
+
+      - name: Build Win7 installer EXE
+        shell: powershell
+        run: |
+          $releaseDir = (Resolve-Path "app/build/windows/x64/runner/Release").Path
+          $iconFile = Join-Path (Resolve-Path "app/windows/runner/resources").Path "app_icon.ico"
+          if (-not (Test-Path $iconFile)) { $iconFile = "" }
+
+          $iss = @"
+          [Setup]
+          AppName=LocalSend
+          AppVersion=1.17.0
+          AppPublisher=LocalSend Improved
+          DefaultDirName={autopf}\LocalSend
+          DisableProgramGroupPage=yes
+          OutputBaseFilename=LocalSend_Setup_Win7
+          Compression=lzma2
+          SolidCompression=yes
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          WizardStyle=modern
+          "$(if ($iconFile) { "SetupIconFile=$iconFile" })
+          [Files]
+          Source: "$releaseDir\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+          [Icons]
+          Name: "{autoprograms}\LocalSend"; Filename: "{app}\localsend_app.exe"; WorkingDir: "{app}"
+          Name: "{autodesktop}\LocalSend"; Filename: "{app}\localsend_app.exe"; WorkingDir: "{app}"
+          [Run]
+          Filename: "{app}\localsend_app.exe"; Description: "启动 LocalSend"; Flags: nowait postinstall skipifsilent
+          "@
+          Set-Content -Path "build_installer_win7.iss" -Value $iss -Encoding UTF8
+
+          $innoPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $innoPath)) { $innoPath = "C:\Program Files\Inno Setup 6\ISCC.exe" }
+          if (Test-Path $innoPath) {
+            & "$innoPath" "build_installer_win7.iss"
+            Get-ChildItem "Output\*.exe" | ForEach-Object { Copy-Item $_.FullName "LocalSend_Setup_Win7.exe" -Force }
+          } else {
+            Write-Host "Inno Setup not found, skipping EXE installer"
+            exit 1
+          }
+
+      - name: Upload Win7 installer EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-win7-installer
+          path: LocalSend_Setup_Win7.exe
+          retention-days: 30

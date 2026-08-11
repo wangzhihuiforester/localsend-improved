@@ -6,8 +6,9 @@ publish_to: "none"
 version: 1.17.0+58
 
 environment:
-  flutter: ^3.41.0
-  sdk: ^3.11.0
+  # Win7 兼容构建分支: 使用最后支持 Windows 7 的 Flutter 3.22 (Dart 3.4)
+  flutter: ^3.22.0
+  sdk: ^3.4.0
 
 dependencies:
   collection: ^1.17.2 # allow newer versions, so it can compile with newer Flutter versions
