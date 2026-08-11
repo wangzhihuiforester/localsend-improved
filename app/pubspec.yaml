@@ -47,7 +47,7 @@ dependencies:
   package_info_plus: ^8.0.0
   pasteboard: 0.3.0
   path: 1.9.1
-  path_provider: 2.1.6
+  path_provider: ^2.1.2
   path_provider_foundation: 2.6.0
   permission_handler: ^11.3.0
   pretty_qr_code: ^3.3.0
