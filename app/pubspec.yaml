@@ -67,7 +67,7 @@ dependencies:
   url_launcher: 6.3.2
   uuid: 4.5.3
   wakelock_plus: 1.5.2
-  wechat_assets_picker: 10.1.2
+  wechat_assets_picker: ^9.0.0
   win32_registry: ^1.1.0
   window_manager: 0.5.2
   windows_taskbar: 1.1.2
