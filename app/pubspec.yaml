@@ -86,6 +86,7 @@ dev_dependencies:
   test: ^1.30.0
 
 dependency_overrides:
+  path_provider_foundation: 2.4.1 # Win7: 覆盖为兼容 Dart 3.4 版本
   device_apps:
     # Migrate to another maintained package to fetch installed apps on Android
     git:
