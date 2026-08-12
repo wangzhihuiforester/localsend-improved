@@ -83,7 +83,7 @@ Future<bool> isAutoStartEnabled() async {
     case TargetPlatform.macOS:
       return await getLaunchAtLogin();
     case TargetPlatform.windows:
-      return _getWindowsRegistryKey().(getValue(_windowsRegistryKeyValue)?.data as String?)?.contains(Platform.resolvedExecutable) ?? false;
+      return _getWindowsRegistryKey().getValue(_windowsRegistryKeyValue)?.data as String?)?.contains(Platform.resolvedExecutable) ?? false;
     default:
       return false;
   }
@@ -101,7 +101,7 @@ Future<bool> isAutoStartHidden() async {
     case TargetPlatform.macOS:
       return await getLaunchAtLoginMinimized();
     case TargetPlatform.windows:
-      return _getWindowsRegistryKey().(getValue(_windowsRegistryKeyValue)?.data as String?)?.contains(startHiddenFlag) ?? false;
+      return _getWindowsRegistryKey().getValue(_windowsRegistryKeyValue)?.data as String?)?.contains(startHiddenFlag) ?? false;
     default:
       return false;
   }
