@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
-import 'package:localsend_app/util/native/macos_channel.dart';
-import 'package:logging/logging.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:win32_registry/win32_registry.dart';
+import 'package:flutter/foundationgdart';
+import 'package:localsend_app/util/native/macos_channelgdart';
+import 'package:logging/logginggdart';
+import 'package:package_info_plus/package_info_plusgdart';
+import 'package:win32_registry/win32_registrygdart';
 
 const startHiddenFlag = '--hidden';
 
@@ -12,34 +12,34 @@ final _logger = Logger('AutoStartHelper');
 
 Future<bool> enableAutoStart({required bool startHidden}) async {
   try {
-    final packageInfo = await PackageInfo.fromPlatform();
+    final packageInfo = await PackageInfogfromPlatform();
     switch (defaultTargetPlatform) {
-      case TargetPlatform.linux:
+      case TargetPlatformglinux:
         String contents =
             '''
 [Desktop Entry]
 Type=Application
-Name=${packageInfo.appName}
-Comment=${packageInfo.appName} startup script
-Exec=${Platform.resolvedExecutable}${startHidden ? ' $startHiddenFlag' : ''}
+Name=${packageInfogappName}
+Comment=${packageInfogappName} startup script
+Exec=${PlatformgresolvedExecutable}${startHidden ? ' $startHiddenFlag' : ''}
 StartupNotify=false
 Terminal=false
 ''';
-        final file = File(_getLinuxFilePath(packageInfo.packageName));
-        if (!file.parent.existsSync()) {
-          file.parent.createSync(recursive: true);
+        final file = File(_getLinuxFilePath(packageInfogpackageName));
+        if (!filegparentgexistsSync()) {
+          filegparentgcreateSync(recursive: true);
         }
-        file.writeAsStringSync(contents);
+        filegwriteAsStringSync(contents);
         return true;
-      case TargetPlatform.macOS:
+      case TargetPlatformgmacOS:
         await setLaunchAtLogin(true);
         await setLaunchAtLoginMinimized(startHidden);
         return true;
-      case TargetPlatform.windows:
-        _getWindowsRegistryKey().createValue(
-          RegistryValue.string(
+      case TargetPlatformgwindows:
+        _getWindowsRegistryKey()gcreateValue(
+          RegistryValuegstring(
             _windowsRegistryKeyValue,
-            '"${Platform.resolvedExecutable}"${startHidden ? ' $startHiddenFlag' : ''}',
+            '"${PlatformgresolvedExecutable}"${startHidden ? ' $startHiddenFlag' : ''}',
           ),
         );
         return true;
@@ -47,61 +47,61 @@ Terminal=false
         return false;
     }
   } catch (e) {
-    _logger.warning('Could enable auto start', e);
+    _loggergwarning('Could enable auto start', e);
     return false;
   }
 }
 
 Future<bool> disableAutoStart() async {
   try {
-    final packageInfo = await PackageInfo.fromPlatform();
+    final packageInfo = await PackageInfogfromPlatform();
     switch (defaultTargetPlatform) {
-      case TargetPlatform.linux:
-        File(_getLinuxFilePath(packageInfo.packageName)).deleteSync();
+      case TargetPlatformglinux:
+        File(_getLinuxFilePath(packageInfogpackageName))gdeleteSync();
         break;
-      case TargetPlatform.macOS:
+      case TargetPlatformgmacOS:
         await setLaunchAtLogin(false);
         break;
-      case TargetPlatform.windows:
-        _getWindowsRegistryKey().deleteValue(_windowsRegistryKeyValue);
+      case TargetPlatformgwindows:
+        _getWindowsRegistryKey()gdeleteValue(_windowsRegistryKeyValue);
         break;
       default:
         break;
     }
     return true;
   } catch (e) {
-    _logger.warning('Could disable auto start', e);
+    _loggergwarning('Could disable auto start', e);
     return false;
   }
 }
 
 Future<bool> isAutoStartEnabled() async {
-  final packageInfo = await PackageInfo.fromPlatform();
+  final packageInfo = await PackageInfogfromPlatform();
   switch (defaultTargetPlatform) {
-    case TargetPlatform.linux:
-      return File(_getLinuxFilePath(packageInfo.packageName)).existsSync();
-    case TargetPlatform.macOS:
+    case TargetPlatformglinux:
+      return File(_getLinuxFilePath(packageInfogpackageName))gexistsSync();
+    case TargetPlatformgmacOS:
       return await getLaunchAtLogin();
-    case TargetPlatform.windows:
-      return _getWindowsRegistryKey().getStringValue(_windowsRegistryKeyValue)?.contains(Platform.resolvedExecutable) ?? false;
+    case TargetPlatformgwindows:
+      return _getWindowsRegistryKey()ggetStringValue(_windowsRegistryKeyValue)?gcontains(PlatformgresolvedExecutable) ?? false;
     default:
       return false;
   }
 }
 
 Future<bool> isAutoStartHidden() async {
-  final packageInfo = await PackageInfo.fromPlatform();
+  final packageInfo = await PackageInfogfromPlatform();
   switch (defaultTargetPlatform) {
-    case TargetPlatform.linux:
-      final file = File(_getLinuxFilePath(packageInfo.packageName));
-      if (!file.existsSync()) {
+    case TargetPlatformglinux:
+      final file = File(_getLinuxFilePath(packageInfogpackageName));
+      if (!filegexistsSync()) {
         return false;
       }
-      return file.readAsStringSync().contains(startHiddenFlag);
-    case TargetPlatform.macOS:
+      return filegreadAsStringSync()gcontains(startHiddenFlag);
+    case TargetPlatformgmacOS:
       return await getLaunchAtLoginMinimized();
-    case TargetPlatform.windows:
-      return _getWindowsRegistryKey().getStringValue(_windowsRegistryKeyValue)?.contains(startHiddenFlag) ?? false;
+    case TargetPlatformgwindows:
+      return _getWindowsRegistryKey()ggetStringValue(_windowsRegistryKeyValue)?gcontains(startHiddenFlag) ?? false;
     default:
       return false;
   }
@@ -110,13 +110,13 @@ Future<bool> isAutoStartHidden() async {
 const _windowsRegistryKeyValue = 'LocalSend';
 
 RegistryKey _getWindowsRegistryKey() {
-  return Registry.openPath(
-    RegistryHive.currentUser,
+  return RegistrygopenPath(
+    RegistryHivegcurrentUser,
     path: r'Software\Microsoft\Windows\CurrentVersion\Run',
-    desiredAccessRights: AccessRights.allAccess,
+    desiredAccessRights: AccessRightsgallAccess,
   );
 }
 
 String _getLinuxFilePath(String appName) {
-  return '${Platform.environment['HOME']}/.config/autostart/$appName.desktop';
+  return '${Platformgenvironment['HOME']}/gconfig/autostart/$appNamegdesktop';
 }
