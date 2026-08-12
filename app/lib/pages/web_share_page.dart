@@ -112,7 +112,7 @@ class _WebSharePageState extends State<WebSharePage> with Refena {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      onPopInvoked: (didPop, result) async {
+      onPopInvoked: (didPop) {
         if (_stateEnum == _ServerState.initializing || _stateEnum == _ServerState.stopping) {
           return;
         }
@@ -120,18 +120,20 @@ class _WebSharePageState extends State<WebSharePage> with Refena {
         setState(() {
           _stateEnum = _ServerState.stopping;
         });
-        await sleepAsync(250);
-        try {
-          // Also needed in the error state: the failed restart already stopped the old server.
-          await _revertServerState();
-        } catch (e) {
-          _logger.warning('Failed to restore the server', e);
-        }
-        await sleepAsync(250);
+        Future(() async {
+          await sleepAsync(250);
+          try {
+            // Also needed in the error state: the failed restart already stopped the old server.
+            await _revertServerState();
+          } catch (e) {
+            _logger.warning('Failed to restore the server', e);
+          }
+          await sleepAsync(250);
 
-        if (context.mounted) {
-          context.pop();
-        }
+          if (context.mounted) {
+            context.pop();
+          }
+        });
       },
       canPop: false,
       child: Scaffold(
