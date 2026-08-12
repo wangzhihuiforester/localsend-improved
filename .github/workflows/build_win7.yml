@@ -61,6 +61,25 @@ jobs:
             Write-Host "WARNING: UCRT redist not found in Windows Kits"
           }
 
+      - name: Copy MSVC runtime DLLs (for Win7)
+        shell: powershell
+        run: |
+          $release = "app/build/windows/x64/runner/Release"
+          $vcRedist = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\*\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($vcRedist) {
+            Get-ChildItem $vcRedist.FullName -Filter "*.dll" | ForEach-Object {
+              Copy-Item $_.FullName $release -Force
+            }
+            Write-Host "MSVC runtime copied from $($vcRedist.FullName)"
+          } else {
+            Write-Host "WARNING: MSVC runtime not found"
+          }
+          # Also copy vcruntime140_1 if present in the redist
+          Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022" -Recurse -Filter "vcruntime140*.dll" -ErrorAction SilentlyContinue | Select-Object -First 4 | ForEach-Object {
+            Copy-Item $_.FullName $release -Force
+            Write-Host "Copied $($_.Name)"
+          }
+          Get-ChildItem $release -Filter "*.dll" | ForEach-Object { Write-Host ("BUNDLED: " + $_.Name) }
       - name: Verify Win7 compatibility hints
         shell: powershell
         run: |
