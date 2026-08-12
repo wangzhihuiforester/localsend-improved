@@ -354,7 +354,6 @@ class _ChatPageState extends State<ChatPage> with Refena {
                       ? Theme.of(context).colorScheme.onPrimary
                       : Theme.of(context).colorScheme.onSurface,
                 ),
-                selectionColor: Colors.blue.withOpacity(0.3),
               ),
               const SizedBox(height: 4),
               Text(
