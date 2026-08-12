@@ -7,86 +7,86 @@ version: 1.17.0+58
 
 environment:
   # Win7 兼容构建分支: 使用最后支持 Windows 7 的 Flutter 3.22 (Dart 3.4)
-  flutter: ^0.0.20
+  flutter: ^3.22.0
   sdk: ^3.4.0
 
 dependencies:
-  collection: 1.18.0
-  connectivity_plus: ^7.3.1
-  crypto: ^3.0.7
-  dart_mappable: ^4.3.1
-  desktop_drop: ^0.7.1
+  collection: 1.18.0 # allow newer versions, so it can compile with newer Flutter versions
+  connectivity_plus: ^6.0.0
+  crypto: 3.0.7
+  dart_mappable: ^4.2.0
+  desktop_drop: 0.7.1
   device_apps: 2.2.0
-  device_info_plus: ^11.4.0
-  dynamic_color: ^1.9.0
-  file_picker: ^11.0.3
-  file_selector: ^1.1.0
-  flex_color_picker: ^3.7.2
+  device_info_plus: ^10.1.0
+  dynamic_color: ^1.7.0
+  file_picker: ^9.2.0
+  file_selector: 1.1.0
+  flex_color_picker: ^3.5.0
   flutter:
     sdk: flutter
-  flutter_displaymode: ^0.7.0
+  flutter_displaymode: 0.7.0
   flutter_localizations:
     sdk: flutter
-  flutter_markdown: ^0.7.7
-  freezed_annotation: ^3.1.0
-  glob: ^2.1.3
-  image: ^4.9.1
-  image_picker: ^1.2.3
-  in_app_purchase: ^3.3.0
-  intl: ^0.20.3
-  local_hero: ^0.3.0
+  flutter_markdown: ^0.7.4
+  freezed_annotation: ^2.4.0
+  glob: 2.1.3
+  image: ^4.1.0
+  image_picker: ^1.1.0
+  in_app_purchase: ^3.2.0 # [FOSS_REMOVE]
+  intl: ^0.19.0 # allow newer versions, so it can compile with newer Flutter versions
+  local_hero: 0.3.0
   localsend_isolates:
     path: ../packages/localsend_isolates
-  logging: ^1.3.0
-  mime: ^2.0.0
-  moform: ^0.2.11
-  nanoid2: ^2.0.1
-  network_info_plus: ^7.0.0
-  open_dir: ^0.0.2
-  open_filex: ^4.7.0
-  package_info_plus: ^9.0.1
-  pasteboard: ^0.5.0
-  path: ^1.9.1
+  logging: 1.3.0
+  mime: 2.0.0
+  moform: 0.2.11
+  nanoid2: 2.0.1
+  network_info_plus: ^6.0.0
+  open_dir: 0.0.2+1
+  open_filex: ^4.4.0
+  package_info_plus: ^8.0.0
+  pasteboard: 0.3.0
+  path: 1.9.1
   path_provider: ^2.1.2
-  path_provider_foundation: ^2.6.0
-  permission_handler: ^13.0.1
-  pretty_qr_code: ^3.6.0
+  path_provider_foundation: 2.6.0
+  permission_handler: ^11.3.0
+  pretty_qr_code: ^3.3.0
   refena_flutter: ^2.1.1
   refena_inspector_client: ^2.0.0
-  routerino: ^0.8.1
-  saf_stream: ^4.0.1
-  screen_retriever: ^0.2.2
-  share_handler: ^0.0.25
-  shared_preferences: ^2.5.5
-  shared_preferences_platform_interface: ^2.4.2
-  slang: ^4.19.0
+  routerino: 0.8.1
+  saf_stream: 2.0.0
+  screen_retriever: 0.2.2
+  share_handler: 0.0.20
+  shared_preferences: ^2.3.0
+  shared_preferences_platform_interface: any
+  slang: 4.18.0
   slang_flutter: 4.18.0
-  system_settings_2: ^3.0.2
-  tray_manager: ^0.5.3
-  uri_content: ^4.0.1
-  url_launcher: ^6.3.2
-  uuid: ^4.6.0
-  wakelock_plus: ^1.4.0
-  wechat_assets_picker: ^10.1.3
-  win32_registry: ^3.0.3
-  window_manager: ^0.5.2
-  windows_taskbar: ^1.1.2
-  yaru: ^7.0.0
+  system_settings_2: 3.0.2
+  tray_manager: 0.5.3
+  uri_content: ^3.0.0
+  url_launcher: ^6.2.0
+  uuid: ^4.4.0
+  wakelock_plus: ^1.2.0
+  wechat_assets_picker: ^9.0.0
+  win32_registry: ^1.1.0
+  window_manager: 0.5.2
+  windows_taskbar: 1.1.2
+  yaru: ^9.0.0
 
 dev_dependencies:
   # Win7 分支: 以下版本兼容 Dart 3.4 (Flutter 3.22)
-  build_runner: ^2.16.0
-  dart_mappable_builder: ^4.3.1
-  flutter_gen_runner: ^5.15.0
-  flutter_lints: ^6.0.0
-  freezed: ^2.5.8
-  mockito: ^5.8.1
+  build_runner: ^2.4.0
+  dart_mappable_builder: ^4.2.0
+  flutter_gen_runner: ^5.4.0
+  flutter_lints: ^4.0.0
+  freezed: ^2.5.0
+  mockito: any
   refena_inspector: ^2.0.0
   slang_build_runner: 4.18.0
-  test: ^1.31.2
+  test: ^1.30.0
 
 dependency_overrides:
-  path_provider_foundation: ^2.6.0
+  path_provider_foundation: 2.4.1 # Win7: 覆盖为兼容 Dart 3.4 版本
   device_apps:
     # Migrate to another maintained package to fetch installed apps on Android
     git:
@@ -118,4 +118,4 @@ flutter:
         - asset: assets/fonts/wqy-microhei.ttc
 
 flutter_gen:
-  line_length: ^..
+  line_length: 150
