@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:gal/gal.dart';
 import 'package:localsend_isolates/rust/api/filename.dart' as rust_filename;
 import 'package:localsend_isolates/util/android_channel.dart' as android_channel;
 import 'package:localsend_isolates/util/content_uri_helper.dart';
@@ -133,28 +132,19 @@ Future<(bool, String?)> saveCachedFileToGallery({
   required bool isImage,
   required Set<String> createdDirectories,
 }) async {
-  try {
-    isImage ? await Gal.putImage(cachedPath) : await Gal.putVideo(cachedPath);
-  } on GalException catch (e) {
-    _logger.warning('Could not save to gallery (${e.type.name}), moving to destination directory', e);
+  // Win7 branch: the gal package (save to OS gallery) was removed because its
+  // native plugin depends on WinRT APIs which do not exist on Windows 7.
+  // Desktop has no gallery concept, so the cached file is moved to the
+  // destination directory instead (same as the old gallery-failure fallback).
+  final (fallbackPath, _, _) = await digestFilePathAndPrepareDirectory(
+    parentDirectory: destinationDirectory,
+    fileName: fileName,
+    createdDirectories: createdDirectories,
+  );
 
-    final (fallbackPath, _, _) = await digestFilePathAndPrepareDirectory(
-      parentDirectory: destinationDirectory,
-      fileName: fileName,
-      createdDirectories: createdDirectories,
-    );
-
-    _logger.info('Moving file from $cachedPath to $fallbackPath');
-    await File(cachedPath).rename(fallbackPath);
-    return (false, fallbackPath);
-  }
-
-  try {
-    await File(cachedPath).delete();
-  } catch (e) {
-    _logger.warning('Could not delete cached file after saving to gallery', e);
-  }
-  return (true, null);
+  _logger.info('Moving file from $cachedPath to $fallbackPath');
+  await File(cachedPath).rename(fallbackPath);
+  return (false, fallbackPath);
 }
 
 /// If there is a file with the same name, then it appends a number to its file name
