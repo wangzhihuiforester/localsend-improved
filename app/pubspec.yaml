@@ -51,8 +51,8 @@ dependencies:
   path_provider_foundation: 2.6.0
   permission_handler: ^11.3.0
   pretty_qr_code: ^3.3.0
-  refena_flutter: ^2.1.1
-  refena_inspector_client: ^2.0.0
+  refena_flutter: 3.3.0
+  refena_inspector_client: 2.1.1
   routerino: ^0.8.0
   saf_stream: ^2.0.0
   screen_retriever: ^0.1.9
@@ -77,11 +77,11 @@ dev_dependencies:
   # Win7 分支: 以下版本兼容 Dart 3.4 (Flutter 3.22)
   build_runner: 2.4.11
   dart_mappable_builder: ^4.2.0
-  flutter_gen_runner: ^5.4.0
+  flutter_gen_runner: 5.4.0
   flutter_lints: ^4.0.0
   freezed: ^2.5.0
   mockito: ^5.4.4
-  refena_inspector: ^2.0.0
+  refena_inspector: 2.1.1
   slang_build_runner: 4.3.0
   test: 1.25.2
 
