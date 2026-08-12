@@ -109,7 +109,7 @@ jobs:
         run: |
           $releaseDir = (Resolve-Path "app/build/windows/x64/runner/Release").Path
           $iconFile = Join-Path (Resolve-Path "app/windows/runner/resources").Path "app_icon.ico"
-          if (-not (Test-Path $iconFile)) { $iconFile = "" }
+          if ($iconFile -and (Test-Path $iconFile)) { $iconLine = "SetupIconFile=$iconFile" } else { $iconLine = "" }
 
           $iss = @"
           [Setup]
