@@ -124,7 +124,7 @@ jobs:
           ArchitecturesAllowed=x64compatible
           ArchitecturesInstallIn64BitMode=x64compatible
           WizardStyle=modern
-          "$(if ($iconFile) { "SetupIconFile=$iconFile" })
+          $iconLine
           [Files]
           Source: "$releaseDir\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
           [Icons]
