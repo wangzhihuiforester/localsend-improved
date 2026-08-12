@@ -162,7 +162,7 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
                         style: TextStyle(
                           color: info.isOnline
                               ? null
-                              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                              : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                         ),
                       ),
                       if (info.isOnline)
@@ -203,7 +203,7 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                 ),
                               ),
                             ),
@@ -212,7 +212,7 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
                                 _formatTime(info.lastMessageTime!),
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                                 ),
                               ),
                           ],
@@ -220,7 +220,7 @@ class _ChatListPageState extends State<ChatListPage> with Refena {
                       : Text(
                           info.isOnline ? '在线' : '离线',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                           ),
                         ),
                   trailing: info.unread
