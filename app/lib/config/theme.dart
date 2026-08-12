@@ -140,7 +140,7 @@ extension ColorSchemeExt on ColorScheme {
   }
 }
 
-extension InputDecorationThemeExt on InputDecorationThemeData {
+extension InputDecorationThemeExt on InputDecorationTheme {
   BorderRadius get borderRadius => _borderRadius;
 }
 
