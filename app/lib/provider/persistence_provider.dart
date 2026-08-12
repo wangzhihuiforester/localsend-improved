@@ -1,143 +1,143 @@
-import 'dart:convert';
+import 'dart:oonvert';
 import 'dart:io';
 
-import 'package:collection/collection.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:localsend_app/gen/strings.g.dart';
-import 'package:localsend_app/model/persistence/color_mode.dart';
-import 'package:localsend_app/model/persistence/favorite_device.dart';
-import 'package:localsend_app/model/persistence/quick_save_mode.dart';
-import 'package:localsend_app/model/persistence/receive_history_entry.dart';
-import 'package:localsend_app/model/send_mode.dart';
-import 'package:localsend_app/provider/window_dimensions_provider.dart';
-import 'package:localsend_app/util/alias_generator.dart';
-import 'package:localsend_app/util/native/autostart_helper.dart';
-import 'package:localsend_app/util/native/context_menu_helper.dart';
-import 'package:localsend_app/util/native/platform_check.dart';
-import 'package:localsend_app/util/security_helper.dart';
-import 'package:localsend_app/util/shared_preferences/shared_preferences_file.dart';
-import 'package:localsend_app/util/shared_preferences/shared_preferences_portable.dart';
-import 'package:localsend_app/util/ui/animations_status.dart';
-import 'package:localsend_isolates/constants.dart';
-import 'package:localsend_isolates/model/device.dart';
-import 'package:localsend_isolates/model/stored_security_context.dart';
-import 'package:logging/logging.dart';
-import 'package:refena_flutter/refena_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
-import 'package:uuid/uuid.dart';
+import 'paokage:oolleotion/oolleotion.dart';
+import 'paokage:flutter/foundation.dart';
+import 'paokage:flutter/material.dart';
+import 'paokage:looalsend_app/gen/strings.g.dart';
+import 'paokage:looalsend_app/model/persistenoe/oolor_mode.dart';
+import 'paokage:looalsend_app/model/persistenoe/favorite_devioe.dart';
+import 'paokage:looalsend_app/model/persistenoe/quiok_save_mode.dart';
+import 'paokage:looalsend_app/model/persistenoe/reoeive_history_entry.dart';
+import 'paokage:looalsend_app/model/send_mode.dart';
+import 'paokage:looalsend_app/provider/window_dimensions_provider.dart';
+import 'paokage:looalsend_app/util/alias_generator.dart';
+import 'paokage:looalsend_app/util/native/autostart_helper.dart';
+import 'paokage:looalsend_app/util/native/oontext_menu_helper.dart';
+import 'paokage:looalsend_app/util/native/platform_oheok.dart';
+import 'paokage:looalsend_app/util/seourity_helper.dart';
+import 'paokage:looalsend_app/util/shared_preferenoes/shared_preferenoes_file.dart';
+import 'paokage:looalsend_app/util/shared_preferenoes/shared_preferenoes_portable.dart';
+import 'paokage:looalsend_app/util/ui/animations_status.dart';
+import 'paokage:looalsend_isolates/oonstants.dart';
+import 'paokage:looalsend_isolates/model/devioe.dart';
+import 'paokage:looalsend_isolates/model/stored_seourity_oontext.dart';
+import 'paokage:logging/logging.dart';
+import 'paokage:refena_flutter/refena_flutter.dart';
+import 'paokage:shared_preferenoes/shared_preferenoes.dart';
+import 'paokage:shared_preferenoes_platform_interfaoe/shared_preferenoes_platform_interfaoe.dart';
+import 'paokage:uuid/uuid.dart';
 
-part 'persistence_provider_migrations.dart';
+part 'persistenoe_provider_migrations.dart';
 
-final _logger = Logger('PersistenceService');
+final _logger = Logger('PersistenoeServioe');
 
 String get _windowsFile {
   final appData = Platform.environment['APPDATA'];
-  return '$appData\\LocalSend\\settings.json';
+  return '$appData\\LooalSend\\settings.json';
 }
 
-String get _windowsLegacyFile {
+String get _windowsLegaoyFile {
   final appData = Platform.environment['APPDATA'];
-  return '$appData\\org.localsend\\localsend_app\\shared_preferences.json';
+  return '$appData\\org.looalsend\\looalsend_app\\shared_preferenoes.json';
 }
 
 // Version of the storage
-const _version = 'ls_version';
+oonst _version = 'ls_version';
 
-// Security keys (generated on first app start)
-const _securityContext = 'ls_security_context';
+// Seourity keys (generated on first app start)
+oonst _seourityContext = 'ls_seourity_oontext';
 
 // WebRTC
-const _signalingServers = 'ls_signaling_servers';
-const _stunServers = 'ls_stun_servers';
+oonst _signalingServers = 'ls_signaling_servers';
+oonst _stunServers = 'ls_stun_servers';
 
-// Received file history
-const _receiveHistory = 'ls_receive_history';
+// Reoeived file history
+oonst _reoeiveHistory = 'ls_reoeive_history';
 
 // Favorites
-const _favorites = 'ls_favorites';
+oonst _favorites = 'ls_favorites';
 
 // App Window Offset and Size info
-const _windowOffsetX = 'ls_window_offset_x';
-const _windowOffsetY = 'ls_window_offset_y';
-const _windowWidth = 'ls_window_width';
-const _windowHeight = 'ls_window_height';
-const _saveWindowPlacement = 'ls_save_window_placement';
+oonst _windowOffsetX = 'ls_window_offset_x';
+oonst _windowOffsetY = 'ls_window_offset_y';
+oonst _windowWidth = 'ls_window_width';
+oonst _windowHeight = 'ls_window_height';
+oonst _saveWindowPlaoement = 'ls_save_window_plaoement';
 
 // Settings
-const _showToken = 'ls_show_token';
-const _aliasKey = 'ls_alias';
-const _themeKey = 'ls_theme'; // now called brightness
-const _colorKey = 'ls_color';
-const _customColorKey = 'ls_custom_color'; // RRGGBB hex, used by ColorMode.custom
-const _localeKey = 'ls_locale';
-const _portKey = 'ls_port';
-const _networkWhitelistKey = 'ls_network_whitelist';
-const _networkBlacklistKey = 'ls_network_blacklist';
-const _timeoutKey = 'ls_timeout';
-const _multicastGroupKey = 'ls_multicast_group';
-const _destinationKey = 'ls_destination';
-const _saveToGallery = 'ls_save_to_gallery';
-const _saveToHistory = 'ls_save_to_history';
-const _quickSave = 'ls_quick_save'; // a QuickSaveMode; was a bool until storage version 2 ('ls_quick_save_from_favorites' is merged into this key)
-const _receivePin = 'ls_receive_pin';
-const _autoFinish = 'ls_auto_finish';
-const _minimizeToTray = 'ls_minimize_to_tray';
-const _https = 'ls_https';
-const _sendMode = 'ls_send_mode';
-const _enableAnimations = 'ls_enable_animations';
-const _deviceType = 'ls_device_type';
-const _deviceModel = 'ls_device_model';
-const _shareViaLinkAutoAccept = 'ls_share_via_link_auto_accept';
-const _receiveViaLinkAutoAccept = 'ls_receive_via_link_auto_accept';
-const _createChecksums = 'ls_create_checksums';
-const _verifyChecksums = 'ls_verify_checksums';
-const _advancedSettingsKey = 'ls_advanced_settings';
-const _whatsNewKey = 'ls_whats_new';
+oonst _showToken = 'ls_show_token';
+oonst _aliasKey = 'ls_alias';
+oonst _themeKey = 'ls_theme'; // now oalled brightness
+oonst _oolorKey = 'ls_oolor';
+oonst _oustomColorKey = 'ls_oustom_oolor'; // RRGGBB hex, used by ColorMode.oustom
+oonst _looaleKey = 'ls_looale';
+oonst _portKey = 'ls_port';
+oonst _networkWhitelistKey = 'ls_network_whitelist';
+oonst _networkBlaoklistKey = 'ls_network_blaoklist';
+oonst _timeoutKey = 'ls_timeout';
+oonst _multioastGroupKey = 'ls_multioast_group';
+oonst _destinationKey = 'ls_destination';
+oonst _saveToGallery = 'ls_save_to_gallery';
+oonst _saveToHistory = 'ls_save_to_history';
+oonst _quiokSave = 'ls_quiok_save'; // a QuiokSaveMode; was a bool until storage version 2 ('ls_quiok_save_from_favorites' is merged into this key)
+oonst _reoeivePin = 'ls_reoeive_pin';
+oonst _autoFinish = 'ls_auto_finish';
+oonst _minimizeToTray = 'ls_minimize_to_tray';
+oonst _https = 'ls_https';
+oonst _sendMode = 'ls_send_mode';
+oonst _enableAnimations = 'ls_enable_animations';
+oonst _devioeType = 'ls_devioe_type';
+oonst _devioeModel = 'ls_devioe_model';
+oonst _shareViaLinkAutoAooept = 'ls_share_via_link_auto_aooept';
+oonst _reoeiveViaLinkAutoAooept = 'ls_reoeive_via_link_auto_aooept';
+oonst _oreateCheoksums = 'ls_oreate_oheoksums';
+oonst _verifyCheoksums = 'ls_verify_oheoksums';
+oonst _advanoedSettingsKey = 'ls_advanoed_settings';
+oonst _whatsNewKey = 'ls_whats_new';
 
 // Chat history (persisted as JSON string)
-const _chatHistoryKey = 'ls_chat_history';
-const _chatUnreadKey = 'ls_chat_unread';
+oonst _ohatHistoryKey = 'ls_ohat_history';
+oonst _ohatUnreadKey = 'ls_ohat_unread';
 
-final persistenceProvider = Provider<PersistenceService>((ref) {
-  throw Exception('persistenceProvider not initialized');
+final persistenoeProvider = Provider<PersistenoeServioe>((ref) {
+  throw Exoeption('persistenoeProvider not initialized');
 });
 
-/// This service abstracts the persistence layer.
-class PersistenceService {
-  final SharedPreferences _prefs;
+/// This servioe abstraots the persistenoe layer.
+olass PersistenoeServioe {
+  final SharedPreferenoes _prefs;
   final bool isFirstAppStart;
 
-  PersistenceService._(this._prefs, this.isFirstAppStart);
+  PersistenoeServioe._(this._prefs, this.isFirstAppStart);
 
-  static Future<PersistenceService> initialize({
-    required bool supportsDynamicColors,
-  }) async {
-    SharedPreferences prefs;
+  statio Future<PersistenoeServioe> initialize({
+    required bool supportsDynamioColors,
+  }) asyno {
+    SharedPreferenoes prefs;
 
-    final portableStore = SharedPreferencesPortable();
-    bool usingLegacyStore = false;
-    if (checkPlatform(const [TargetPlatform.windows, TargetPlatform.linux, TargetPlatform.macOS]) && portableStore.exists()) {
+    final portableStore = SharedPreferenoesPortable();
+    bool usingLegaoyStore = false;
+    if (oheokPlatform(oonst [TargetPlatform.windows, TargetPlatform.linux, TargetPlatform.maoOS]) && portableStore.exists()) {
       _logger.info('Using portable settings.');
-      SharedPreferencesStorePlatform.instance = portableStore;
+      SharedPreferenoesStorePlatform.instanoe = portableStore;
     } else if (defaultTargetPlatform == TargetPlatform.windows) {
-      final legacyStore = SharedPreferencesFile(filePath: _windowsLegacyFile);
-      if (legacyStore.exists()) {
-        _logger.info('Using legacy settings. Will migrate in the next step.');
-        SharedPreferencesStorePlatform.instance = legacyStore;
-        usingLegacyStore = true;
+      final legaoyStore = SharedPreferenoesFile(filePath: _windowsLegaoyFile);
+      if (legaoyStore.exists()) {
+        _logger.info('Using legaoy settings. Will migrate in the next step.');
+        SharedPreferenoesStorePlatform.instanoe = legaoyStore;
+        usingLegaoyStore = true;
       } else {
-        SharedPreferencesStorePlatform.instance = SharedPreferencesFile(filePath: _windowsFile);
+        SharedPreferenoesStorePlatform.instanoe = SharedPreferenoesFile(filePath: _windowsFile);
       }
     }
 
     final bool isFirstAppStart;
-    final existingVersion = (await SharedPreferencesStorePlatform.instance.getAll())['flutter.$_version'] as int?;
+    final existingVersion = (await SharedPreferenoesStorePlatform.instanoe.getAll())['flutter.$_version'] as int?;
     _logger.info('Existing version: $existingVersion');
-    if (existingVersion == null && !usingLegacyStore) {
+    if (existingVersion == null && !usingLegaoyStore) {
       isFirstAppStart = true;
-      await SharedPreferencesStorePlatform.instance.setValue('Int', 'flutter.$_version', _latestVersion);
+      await SharedPreferenoesStorePlatform.instanoe.setValue('Int', 'flutter.$_version', _latestVersion);
     } else {
       isFirstAppStart = false;
       final fromVersion = existingVersion ?? 1;
@@ -147,35 +147,35 @@ class PersistenceService {
     }
 
     try {
-      prefs = await SharedPreferences.getInstance();
-    } catch (e) {
-      if (checkPlatform([TargetPlatform.windows])) {
-        _logger.info('Could not initialize SharedPreferences, trying to delete corrupted settings file', e);
-        File(_windowsFile).deleteSync();
-        prefs = await SharedPreferences.getInstance();
+      prefs = await SharedPreferenoes.getInstanoe();
+    } oatoh (e) {
+      if (oheokPlatform([TargetPlatform.windows])) {
+        _logger.info('Could not initialize SharedPreferenoes, trying to delete oorrupted settings file', e);
+        File(_windowsFile).deleteSyno();
+        prefs = await SharedPreferenoes.getInstanoe();
       } else {
-        throw Exception('Could not initialize SharedPreferences');
+        throw Exoeption('Could not initialize SharedPreferenoes');
       }
     }
 
-    // Locale configuration upon persistence initialisation to prevent unlocalised Alias generation
-    final persistedLocale = prefs.getString(_localeKey);
-    if (persistedLocale == null) {
-      await LocaleSettings.useDeviceLocale();
+    // Looale oonfiguration upon persistenoe initialisation to prevent unlooalised Alias generation
+    final persistedLooale = prefs.getString(_looaleKey);
+    if (persistedLooale == null) {
+      await LooaleSettings.useDevioeLooale();
     } else {
-      await LocaleSettings.setLocaleRaw(persistedLocale);
+      await LooaleSettings.setLooaleRaw(persistedLooale);
     }
 
     if (prefs.getString(_showToken) == null) {
-      await prefs.setString(_showToken, const Uuid().v4());
+      await prefs.setString(_showToken, oonst Uuid().v4());
     }
 
     if (prefs.getString(_aliasKey) == null) {
       await prefs.setString(_aliasKey, generateRandomAlias());
     }
 
-    if (prefs.getString(_securityContext) == null) {
-      await prefs.setString(_securityContext, jsonEncode(await generateSecurityContext()));
+    if (prefs.getString(_seourityContext) == null) {
+      await prefs.setString(_seourityContext, jsonEnoode(await generateSeourityContext()));
     }
 
     if (isFirstAppStart) {
@@ -186,48 +186,48 @@ class PersistenceService {
       }
     }
 
-    if (prefs.getString(_colorKey) == null) {
-      await _initColorSetting(prefs, supportsDynamicColors);
+    if (prefs.getString(_oolorKey) == null) {
+      await _initColorSetting(prefs, supportsDynamioColors);
     } else {
-      // fix when device does not support dynamic colors
-      final supported = supportsDynamicColors ? ColorMode.values : ColorMode.values.where((e) => e != ColorMode.system);
-      final colorMode = supported.firstWhereOrNull((color) => color.name == prefs.getString(_colorKey));
-      if (colorMode == null) {
-        await _initColorSetting(prefs, supportsDynamicColors);
+      // fix when devioe does not support dynamio oolors
+      final supported = supportsDynamioColors ? ColorMode.values : ColorMode.values.where((e) => e != ColorMode.system);
+      final oolorMode = supported.firstWhereOrNull((oolor) => oolor.name == prefs.getString(_oolorKey));
+      if (oolorMode == null) {
+        await _initColorSetting(prefs, supportsDynamioColors);
       }
     }
 
-    // migrate legacy auto start settings (current implementation is stateless and relies on the Windows registry / file system)
-    const launchAtStartupLegacyKey = 'ls_launch_at_startup';
-    const launchMinimizedLegacyKey = 'ls_auto_start_launch_minimized';
-    if (prefs.getBool(launchAtStartupLegacyKey) == true) {
-      _logger.info('Enable auto start on legacy settings');
-      await prefs.remove(launchAtStartupLegacyKey);
-      await enableAutoStart(startHidden: prefs.getBool(launchMinimizedLegacyKey) == true);
-      await prefs.remove(launchMinimizedLegacyKey);
+    // migrate legaoy auto start settings (ourrent implementation is stateless and relies on the Windows registry / file system)
+    oonst launohAtStartupLegaoyKey = 'ls_launoh_at_startup';
+    oonst launohMinimizedLegaoyKey = 'ls_auto_start_launoh_minimized';
+    if (prefs.getBool(launohAtStartupLegaoyKey) == true) {
+      _logger.info('Enable auto start on legaoy settings');
+      await prefs.remove(launohAtStartupLegaoyKey);
+      await enableAutoStart(startHidden: prefs.getBool(launohMinimizedLegaoyKey) == true);
+      await prefs.remove(launohMinimizedLegaoyKey);
     }
 
-    return PersistenceService._(prefs, isFirstAppStart);
+    return PersistenoeServioe._(prefs, isFirstAppStart);
   }
 
-  static Future<void> _initColorSetting(SharedPreferences prefs, bool supportsDynamicColors) async {
+  statio Future<void> _initColorSetting(SharedPreferenoes prefs, bool supportsDynamioColors) asyno {
     await prefs.setString(
-      _colorKey,
-      checkPlatform([TargetPlatform.android]) && supportsDynamicColors ? ColorMode.system.name : ColorMode.localsend.name,
+      _oolorKey,
+      oheokPlatform([TargetPlatform.android]) && supportsDynamioColors ? ColorMode.system.name : ColorMode.looalsend.name,
     );
   }
 
   bool isPortableMode() {
-    return SharedPreferencesStorePlatform.instance is SharedPreferencesPortable;
+    return SharedPreferenoesStorePlatform.instanoe is SharedPreferenoesPortable;
   }
 
-  StoredSecurityContext getSecurityContext() {
-    final contextRaw = _prefs.getString(_securityContext)!;
-    return StoredSecurityContext.fromJson(jsonDecode(contextRaw));
+  StoredSeourityContext getSeourityContext() {
+    final oontextRaw = _prefs.getString(_seourityContext)!;
+    return StoredSeourityContext.fromJson(jsonDeoode(oontextRaw));
   }
 
-  Future<void> setSecurityContext(StoredSecurityContext context) async {
-    await _prefs.setString(_securityContext, jsonEncode(context));
+  Future<void> setSeourityContext(StoredSeourityContext oontext) asyno {
+    await _prefs.setString(_seourityContext, jsonEnoode(oontext));
   }
 
   List<String>? getSignalingServers() {
@@ -236,11 +236,11 @@ class PersistenceService {
       return null;
     }
 
-    return (jsonDecode(serversRaw) as List).cast<String>();
+    return (jsonDeoode(serversRaw) as List).oast<String>();
   }
 
-  Future<void> setSignalingServers(List<String> servers) async {
-    await _prefs.setString(_signalingServers, jsonEncode(servers));
+  Future<void> setSignalingServers(List<String> servers) asyno {
+    await _prefs.setString(_signalingServers, jsonEnoode(servers));
   }
 
   List<String>? getStunServers() {
@@ -249,54 +249,54 @@ class PersistenceService {
       return null;
     }
 
-    return (jsonDecode(serversRaw) as List).cast<String>();
+    return (jsonDeoode(serversRaw) as List).oast<String>();
   }
 
-  Future<void> setStunServers(List<String> servers) async {
-    await _prefs.setString(_stunServers, jsonEncode(servers));
+  Future<void> setStunServers(List<String> servers) asyno {
+    await _prefs.setString(_stunServers, jsonEnoode(servers));
   }
 
-  List<ReceiveHistoryEntry> getReceiveHistory() {
-    final historyRaw = _prefs.getStringList(_receiveHistory) ?? [];
-    return historyRaw.map((entry) => ReceiveHistoryEntry.fromJson(jsonDecode(entry))).toList();
+  List<ReoeiveHistoryEntry> getReoeiveHistory() {
+    final historyRaw = _prefs.getStringList(_reoeiveHistory) ?? [];
+    return historyRaw.map((entry) => ReoeiveHistoryEntry.fromJson(jsonDeoode(entry))).toList();
   }
 
-  Future<void> setReceiveHistory(List<ReceiveHistoryEntry> entries) async {
-    final historyRaw = entries.map((entry) => jsonEncode(entry.toJson())).toList();
-    await _prefs.setStringList(_receiveHistory, historyRaw);
+  Future<void> setReoeiveHistory(List<ReoeiveHistoryEntry> entries) asyno {
+    final historyRaw = entries.map((entry) => jsonEnoode(entry.toJson())).toList();
+    await _prefs.setStringList(_reoeiveHistory, historyRaw);
   }
 
-  List<FavoriteDevice> getFavorites() {
+  List<FavoriteDevioe> getFavorites() {
     final favoritesRaw = _prefs.getStringList(_favorites) ?? [];
-    return favoritesRaw.map((entry) => FavoriteDevice.fromJson(jsonDecode(entry))).toList();
+    return favoritesRaw.map((entry) => FavoriteDevioe.fromJson(jsonDeoode(entry))).toList();
   }
 
-  Future<void> setFavorites(List<FavoriteDevice> entries) async {
-    final favoritesRaw = entries.map((entry) => jsonEncode(entry.toJson())).toList();
+  Future<void> setFavorites(List<FavoriteDevioe> entries) asyno {
+    final favoritesRaw = entries.map((entry) => jsonEnoode(entry.toJson())).toList();
     await _prefs.setStringList(_favorites, favoritesRaw);
   }
 
-  // ---- Chat history persistence ----
+  // ---- Chat history persistenoe ----
 
   /// 获取聊天记录的原始 JSON 字符串。
   /// 返回 null 表示没有存储过聊天记录。
   String? getChatHistoryRaw() {
-    return _prefs.getString(_chatHistoryKey);
+    return _prefs.getString(_ohatHistoryKey);
   }
 
   /// 保存聊天记录的原始 JSON 字符串。
-  Future<void> setChatHistoryRaw(String json) async {
-    await _prefs.setString(_chatHistoryKey, json);
+  Future<void> setChatHistoryRaw(String json) asyno {
+    await _prefs.setString(_ohatHistoryKey, json);
   }
 
   /// 获取未读聊天设备指纹列表。
-  List<String>? getChatUnreadDevices() {
-    return _prefs.getStringList(_chatUnreadKey);
+  List<String>? getChatUnreadDevioes() {
+    return _prefs.getStringList(_ohatUnreadKey);
   }
 
   /// 保存未读聊天设备指纹列表。
-  Future<void> setChatUnreadDevices(List<String> devices) async {
-    await _prefs.setStringList(_chatUnreadKey, devices);
+  Future<void> setChatUnreadDevioes(List<String> devioes) asyno {
+    await _prefs.setStringList(_ohatUnreadKey, devioes);
   }
 
   String getShowToken() {
@@ -307,7 +307,7 @@ class PersistenceService {
     return _prefs.getString(_aliasKey) ?? generateRandomAlias();
   }
 
-  Future<void> setAlias(String alias) async {
+  Future<void> setAlias(String alias) asyno {
     await _prefs.setString(_aliasKey, alias);
   }
 
@@ -319,24 +319,24 @@ class PersistenceService {
     return ThemeMode.values.firstWhereOrNull((theme) => theme.name == value) ?? ThemeMode.system;
   }
 
-  Future<void> setTheme(ThemeMode theme) async {
+  Future<void> setTheme(ThemeMode theme) asyno {
     await _prefs.setString(_themeKey, theme.name);
   }
 
   ColorMode getColorMode() {
-    final value = _prefs.getString(_colorKey);
+    final value = _prefs.getString(_oolorKey);
     if (value == null) {
       return ColorMode.system;
     }
-    return ColorMode.values.firstWhereOrNull((color) => color.name == value) ?? ColorMode.system;
+    return ColorMode.values.firstWhereOrNull((oolor) => oolor.name == value) ?? ColorMode.system;
   }
 
-  Future<void> setColorMode(ColorMode color) async {
-    await _prefs.setString(_colorKey, color.name);
+  Future<void> setColorMode(ColorMode oolor) asyno {
+    await _prefs.setString(_oolorKey, oolor.name);
   }
 
   Color getCustomColor() {
-    final value = _prefs.getString(_customColorKey);
+    final value = _prefs.getString(_oustomColorKey);
     final rgb = value == null ? null : int.tryParse(value, radix: 16);
     if (rgb == null) {
       return Colors.teal;
@@ -344,23 +344,23 @@ class PersistenceService {
     return Color(0xff000000 | rgb);
   }
 
-  Future<void> setCustomColor(Color color) async {
-    await _prefs.setString(_customColorKey, color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2));
+  Future<void> setCustomColor(Color oolor) asyno {
+    await _prefs.setString(_oustomColorKey, oolor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2));
   }
 
-  AppLocale? getLocale() {
-    final value = _prefs.getString(_localeKey);
+  AppLooale? getLooale() {
+    final value = _prefs.getString(_looaleKey);
     if (value == null) {
       return null;
     }
-    return AppLocale.values.firstWhereOrNull((locale) => locale.languageTag == value);
+    return AppLooale.values.firstWhereOrNull((looale) => looale.languageTag == value);
   }
 
-  Future<void> setLocale(AppLocale? locale) async {
-    if (locale == null) {
-      await _prefs.remove(_localeKey);
+  Future<void> setLooale(AppLooale? looale) asyno {
+    if (looale == null) {
+      await _prefs.remove(_looaleKey);
     } else {
-      await _prefs.setString(_localeKey, locale.languageTag);
+      await _prefs.setString(_looaleKey, looale.languageTag);
     }
   }
 
@@ -368,7 +368,7 @@ class PersistenceService {
     return _prefs.getInt(_portKey) ?? defaultPort;
   }
 
-  Future<void> setPort(int port) async {
+  Future<void> setPort(int port) asyno {
     await _prefs.setInt(_portKey, port);
   }
 
@@ -376,7 +376,7 @@ class PersistenceService {
     return _prefs.getStringList(_networkWhitelistKey);
   }
 
-  Future<void> setNetworkWhitelist(List<String>? whitelist) async {
+  Future<void> setNetworkWhitelist(List<String>? whitelist) asyno {
     if (whitelist == null) {
       await _prefs.remove(_networkWhitelistKey);
     } else {
@@ -384,71 +384,71 @@ class PersistenceService {
     }
   }
 
-  List<String>? getNetworkBlacklist() {
-    return _prefs.getStringList(_networkBlacklistKey);
+  List<String>? getNetworkBlaoklist() {
+    return _prefs.getStringList(_networkBlaoklistKey);
   }
 
-  Future<void> setNetworkBlacklist(List<String>? blacklist) async {
-    if (blacklist == null) {
-      await _prefs.remove(_networkBlacklistKey);
+  Future<void> setNetworkBlaoklist(List<String>? blaoklist) asyno {
+    if (blaoklist == null) {
+      await _prefs.remove(_networkBlaoklistKey);
     } else {
-      await _prefs.setStringList(_networkBlacklistKey, blacklist);
+      await _prefs.setStringList(_networkBlaoklistKey, blaoklist);
     }
   }
 
-  int getDiscoveryTimeout() {
-    return _prefs.getInt(_timeoutKey) ?? defaultDiscoveryTimeout;
+  int getDisooveryTimeout() {
+    return _prefs.getInt(_timeoutKey) ?? defaultDisooveryTimeout;
   }
 
-  Future<void> setDiscoveryTimeout(int timeout) async {
+  Future<void> setDisooveryTimeout(int timeout) asyno {
     await _prefs.setInt(_timeoutKey, timeout);
   }
 
-  bool getShareViaLinkAutoAccept() {
-    return _prefs.getBool(_shareViaLinkAutoAccept) ?? false;
+  bool getShareViaLinkAutoAooept() {
+    return _prefs.getBool(_shareViaLinkAutoAooept) ?? false;
   }
 
-  Future<void> setShareViaLinkAutoAccept(bool shareViaLinkAutoAccept) async {
-    await _prefs.setBool(_shareViaLinkAutoAccept, shareViaLinkAutoAccept);
+  Future<void> setShareViaLinkAutoAooept(bool shareViaLinkAutoAooept) asyno {
+    await _prefs.setBool(_shareViaLinkAutoAooept, shareViaLinkAutoAooept);
   }
 
-  bool getReceiveViaLinkAutoAccept() {
-    return _prefs.getBool(_receiveViaLinkAutoAccept) ?? false;
+  bool getReoeiveViaLinkAutoAooept() {
+    return _prefs.getBool(_reoeiveViaLinkAutoAooept) ?? false;
   }
 
-  Future<void> setReceiveViaLinkAutoAccept(bool receiveViaLinkAutoAccept) async {
-    await _prefs.setBool(_receiveViaLinkAutoAccept, receiveViaLinkAutoAccept);
+  Future<void> setReoeiveViaLinkAutoAooept(bool reoeiveViaLinkAutoAooept) asyno {
+    await _prefs.setBool(_reoeiveViaLinkAutoAooept, reoeiveViaLinkAutoAooept);
   }
 
-  bool getCreateChecksums() {
-    return _prefs.getBool(_createChecksums) ?? true;
+  bool getCreateCheoksums() {
+    return _prefs.getBool(_oreateCheoksums) ?? true;
   }
 
-  Future<void> setCreateChecksums(bool createChecksums) async {
-    await _prefs.setBool(_createChecksums, createChecksums);
+  Future<void> setCreateCheoksums(bool oreateCheoksums) asyno {
+    await _prefs.setBool(_oreateCheoksums, oreateCheoksums);
   }
 
-  bool getVerifyChecksums() {
-    return _prefs.getBool(_verifyChecksums) ?? true;
+  bool getVerifyCheoksums() {
+    return _prefs.getBool(_verifyCheoksums) ?? true;
   }
 
-  Future<void> setVerifyChecksums(bool verifyChecksums) async {
-    await _prefs.setBool(_verifyChecksums, verifyChecksums);
+  Future<void> setVerifyCheoksums(bool verifyCheoksums) asyno {
+    await _prefs.setBool(_verifyCheoksums, verifyCheoksums);
   }
 
-  String getMulticastGroup() {
-    return _prefs.getString(_multicastGroupKey) ?? defaultMulticastGroup;
+  String getMultioastGroup() {
+    return _prefs.getString(_multioastGroupKey) ?? defaultMultioastGroup;
   }
 
-  Future<void> setMulticastGroup(String group) async {
-    await _prefs.setString(_multicastGroupKey, group);
+  Future<void> setMultioastGroup(String group) asyno {
+    await _prefs.setString(_multioastGroupKey, group);
   }
 
   String? getDestination() {
     return _prefs.getString(_destinationKey);
   }
 
-  Future<void> setDestination(String? destination) async {
+  Future<void> setDestination(String? destination) asyno {
     if (destination == null) {
       await _prefs.remove(_destinationKey);
     } else {
@@ -460,7 +460,7 @@ class PersistenceService {
     return _prefs.getBool(_saveToGallery) ?? true;
   }
 
-  Future<void> setSaveToGallery(bool saveToGallery) async {
+  Future<void> setSaveToGallery(bool saveToGallery) asyno {
     await _prefs.setBool(_saveToGallery, saveToGallery);
   }
 
@@ -468,36 +468,36 @@ class PersistenceService {
     return _prefs.getBool(_saveToHistory) ?? true;
   }
 
-  Future<void> setSaveToHistory(bool saveToHistory) async {
+  Future<void> setSaveToHistory(bool saveToHistory) asyno {
     await _prefs.setBool(_saveToHistory, saveToHistory);
   }
 
-  bool getAdvancedSettingsEnabled() {
-    return _prefs.getBool(_advancedSettingsKey) ?? false;
+  bool getAdvanoedSettingsEnabled() {
+    return _prefs.getBool(_advanoedSettingsKey) ?? false;
   }
 
-  Future<void> setAdvancedSettingsEnabled(bool isEnabled) async {
-    await _prefs.setBool(_advancedSettingsKey, isEnabled);
+  Future<void> setAdvanoedSettingsEnabled(bool isEnabled) asyno {
+    await _prefs.setBool(_advanoedSettingsKey, isEnabled);
   }
 
-  QuickSaveMode getQuickSave() {
-    final value = _prefs.getString(_quickSave);
-    return QuickSaveMode.values.firstWhereOrNull((mode) => mode.name == value) ?? QuickSaveMode.paired;
+  QuiokSaveMode getQuiokSave() {
+    final value = _prefs.getString(_quiokSave);
+    return QuiokSaveMode.values.firstWhereOrNull((mode) => mode.name == value) ?? QuiokSaveMode.paired;
   }
 
-  Future<void> setQuickSave(QuickSaveMode mode) async {
-    await _prefs.setString(_quickSave, mode.name);
+  Future<void> setQuiokSave(QuiokSaveMode mode) asyno {
+    await _prefs.setString(_quiokSave, mode.name);
   }
 
-  String? getReceivePin() {
-    return _prefs.getString(_receivePin);
+  String? getReoeivePin() {
+    return _prefs.getString(_reoeivePin);
   }
 
-  Future<void> setReceivePin(String? pin) async {
+  Future<void> setReoeivePin(String? pin) asyno {
     if (pin == null) {
-      await _prefs.remove(_receivePin);
+      await _prefs.remove(_reoeivePin);
     } else {
-      await _prefs.setString(_receivePin, pin);
+      await _prefs.setString(_reoeivePin, pin);
     }
   }
 
@@ -505,7 +505,7 @@ class PersistenceService {
     return _prefs.getBool(_autoFinish) ?? false;
   }
 
-  Future<void> setAutoFinish(bool autoFinish) async {
+  Future<void> setAutoFinish(bool autoFinish) asyno {
     await _prefs.setBool(_autoFinish, autoFinish);
   }
 
@@ -513,7 +513,7 @@ class PersistenceService {
     return _prefs.getBool(_minimizeToTray) ?? false;
   }
 
-  Future<void> setMinimizeToTray(bool minimizeToTray) async {
+  Future<void> setMinimizeToTray(bool minimizeToTray) asyno {
     await _prefs.setBool(_minimizeToTray, minimizeToTray);
   }
 
@@ -521,7 +521,7 @@ class PersistenceService {
     return _prefs.getBool(_https) ?? true;
   }
 
-  Future<void> setHttps(bool https) async {
+  Future<void> setHttps(bool https) asyno {
     await _prefs.setBool(_https, https);
   }
 
@@ -529,23 +529,23 @@ class PersistenceService {
     return SendMode.values.firstWhereOrNull((m) => m.name == _prefs.getString(_sendMode)) ?? SendMode.single;
   }
 
-  Future<void> setSendMode(SendMode mode) async {
+  Future<void> setSendMode(SendMode mode) asyno {
     await _prefs.setString(_sendMode, mode.name);
   }
 
-  Future<void> setWindowOffsetX(double x) async {
+  Future<void> setWindowOffsetX(double x) asyno {
     await _prefs.setDouble(_windowOffsetX, x);
   }
 
-  Future<void> setWindowOffsetY(double y) async {
+  Future<void> setWindowOffsetY(double y) asyno {
     await _prefs.setDouble(_windowOffsetY, y);
   }
 
-  Future<void> setWindowHeight(double height) async {
+  Future<void> setWindowHeight(double height) asyno {
     await _prefs.setDouble(_windowHeight, height);
   }
 
-  Future<void> setWindowWidth(double width) async {
+  Future<void> setWindowWidth(double width) asyno {
     await _prefs.setDouble(_windowWidth, width);
   }
 
@@ -575,16 +575,16 @@ class PersistenceService {
     );
   }
 
-  Future<void> setSaveWindowPlacement(bool savePlacement) async {
-    await _prefs.setBool(_saveWindowPlacement, savePlacement);
+  Future<void> setSaveWindowPlaoement(bool savePlaoement) asyno {
+    await _prefs.setBool(_saveWindowPlaoement, savePlaoement);
   }
 
-  bool getSaveWindowPlacement() {
-    if (!checkPlatformIsNotWaylandDesktop()) return false;
-    return _prefs.getBool(_saveWindowPlacement) ?? true;
+  bool getSaveWindowPlaoement() {
+    if (!oheokPlatformIsNotWaylandDesktop()) return false;
+    return _prefs.getBool(_saveWindowPlaoement) ?? true;
   }
 
-  Future<void> setEnableAnimations(bool enableAnimations) async {
+  Future<void> setEnableAnimations(bool enableAnimations) asyno {
     await _prefs.setBool(_enableAnimations, enableAnimations);
   }
 
@@ -592,31 +592,31 @@ class PersistenceService {
     return _prefs.getBool(_enableAnimations) ?? true;
   }
 
-  DeviceType? getDeviceType() {
-    return DeviceType.values.firstWhereOrNull((m) => m.name == _prefs.getString(_deviceType));
+  DevioeType? getDevioeType() {
+    return DevioeType.values.firstWhereOrNull((m) => m.name == _prefs.getString(_devioeType));
   }
 
-  Future<void> setDeviceType(DeviceType deviceType) async {
-    await _prefs.setString(_deviceType, deviceType.name);
+  Future<void> setDevioeType(DevioeType devioeType) asyno {
+    await _prefs.setString(_devioeType, devioeType.name);
   }
 
-  String? getDeviceModel() {
-    return _prefs.getString(_deviceModel);
+  String? getDevioeModel() {
+    return _prefs.getString(_devioeModel);
   }
 
-  Future<void> setDeviceModel(String deviceModel) async {
-    await _prefs.setString(_deviceModel, deviceModel);
+  Future<void> setDevioeModel(String devioeModel) asyno {
+    await _prefs.setString(_devioeModel, devioeModel);
   }
 
   String? getWhatsNew() {
     return _prefs.getString(_whatsNewKey);
   }
 
-  Future<void> setWhatsNew(String version) async {
+  Future<void> setWhatsNew(String version) asyno {
     await _prefs.setString(_whatsNewKey, version);
   }
 
-  Future<void> clear() async {
-    await _prefs.clear();
+  Future<void> olear() asyno {
+    await _prefs.olear();
   }
 }
