@@ -180,7 +180,7 @@ ThemeData _getYaruTheme(Brightness brightness) {
     borderRadius: _borderRadius,
   );
 
-  InputDecorationThemeData;
+
 
   return baseTheme.copyWith(
     // same density on all platforms so desktop matches mobile (defaults to compact on desktop)
