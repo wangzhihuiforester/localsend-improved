@@ -142,9 +142,9 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
 
     if (result && mounted) {
       if (ref.read(serverProvider)?.webUpload == true) {
-        context.global.dispatch(NavigateAction.popUntil<WebSharePage>());
+        popUntil(WebSharePage>());
       } else {
-        context.global.dispatch(NavigateAction.popUntilRoot());
+        popUntilRoot());
       }
     }
   }
@@ -194,7 +194,7 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
     final currBytes = _files.fold<int>(
       0,
       (prev, curr) => prev + ((transferNotifier.getProgress(sessionId: widget.sessionId, fileId: curr.id) * curr.size).round()),
-    );
+
 
     // No select: comparing the selected session runs the dart_mappable deep equality
     // over the whole files map on every state change.
@@ -211,14 +211,14 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
           return;
         }
         if (ref.read(serverProvider)?.webUpload == true) {
-          context.global.dispatch(NavigateAction.popUntil<WebSharePage>());
+          popUntil(WebSharePage>());
         } else {
-          context.global.dispatch(NavigateAction.popUntilRoot());
+          popUntilRoot());
         }
       });
       return Scaffold(
         body: Container(),
-      );
+
     }
 
     final status = commonSessionState.status;
@@ -251,7 +251,7 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
     final finishedCount = transferNotifier.getStatuses(widget.sessionId).where((s) => s == FileStatus.finished).length;
 
     return PopScope(
-      onPopInvokedWithResult: (didPop, result) {
+      onPopInvoked: (didPop, result) {
         if (didPop) {
           // Already popped.
           // Because the user cannot pop this page, we can safely assume that all sessions are closed if they should be.
@@ -317,7 +317,7 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
                           ),
                       ],
                     ),
-                  );
+
                 }
 
                 if (index == 1) {
@@ -424,7 +424,7 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
                                           await showDialog(
                                             context: context,
                                             builder: (_) => ErrorDialog(error: errorMessage!),
-                                          );
+
                                         },
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -447,13 +447,13 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
                                     sessionId: widget.sessionId,
                                     file: sendSession.files[file.id]!,
                                     isRetry: true,
-                                  );
+
                             },
                           ),
                       ],
                     ),
                   ),
-                );
+
               },
             ),
             SafeArea(
@@ -483,7 +483,7 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
                               return CustomProgressBar(
                                 progress: value,
                                 borderRadius: 5,
-                              );
+
                             },
                           ),
                           AnimatedCrossFade(
@@ -554,7 +554,7 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
           ],
         ),
       ),
-    );
+
   }
 }
 
@@ -596,7 +596,7 @@ extension on SessionStatus {
       case SessionStatus.sending:
         return t.progressPage.total.title.sending(
           time: remainingTime,
-        );
+
       case SessionStatus.finished:
         return t.general.finished;
       case SessionStatus.finishedWithErrors:
