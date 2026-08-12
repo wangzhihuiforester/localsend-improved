@@ -80,7 +80,7 @@ dev_dependencies:
   flutter_gen_runner: ^5.15.0
   flutter_lints: ^6.0.0
   freezed: ^2.5.8
-  mockito: ^5.8.1
+  mockito: ^5.4.4
   refena_inspector: ^2.0.0
   slang_build_runner: ^4.19.0
   test: ^1.25.8
