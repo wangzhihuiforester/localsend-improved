@@ -69,7 +69,7 @@ dependencies:
   wakelock_plus: ^1.2.0
   wechat_assets_picker: ^9.0.0
   win32_registry: ^1.1.0
-  window_manager: ^0.4.0
+  window_manager: ^0.3.0
   windows_taskbar: ^1.1.0
   yaru: ^4.0.0
 
