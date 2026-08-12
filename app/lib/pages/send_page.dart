@@ -99,7 +99,7 @@ class _SendPageState extends State<SendPage> with Refena {
     final waiting = sendState?.status == SessionStatus.waiting;
 
     return PopScope(
-      onPopInvokedWithResult: (didPop, result) {
+      onPopInvoked: (didPop) {
         if (didPop && widget.closeSessionOnClose) {
           _cancel();
         }
@@ -240,7 +240,7 @@ class _SendPageState extends State<SendPage> with Refena {
                               child: FilledButton.icon(
                                 onPressed: () {
                                   _cancel();
-                                  context.global.dispatch(NavigateAction.popUntilRoot());
+                                  context.popUntilRoot();
                                 },
                                 icon: Icon(waiting ? Icons.close : Icons.check_circle),
                                 label: Text(waiting ? t.general.cancel : t.general.close),
