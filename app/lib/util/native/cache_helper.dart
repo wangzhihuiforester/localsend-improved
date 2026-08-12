@@ -34,7 +34,6 @@ Future<void> _clear(RootIsolateToken token) async {
   // 每个子任务都自行捕获异常，确保单个清理步骤失败不会中断其他步骤，
   // 同时保证所有删除操作都被 await 完成。
   final futures = (
-    FilePicker.clearTemporaryFiles(),
     PhotoManager.clearFileCache(),
     // 递归清理临时目录（包括子目录中的文件），并删除清空后的空目录
     () async {
