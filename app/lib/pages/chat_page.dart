@@ -272,7 +272,7 @@ class _ChatPageState extends State<ChatPage> with Refena {
                   Icon(
                     Icons.info_outline,
                     size: 16,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -280,7 +280,7 @@ class _ChatPageState extends State<ChatPage> with Refena {
                       '该设备当前离线，您可以查看历史聊天记录',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                       ),
                     ),
                   ),
@@ -342,7 +342,7 @@ class _ChatPageState extends State<ChatPage> with Refena {
                   msg.deviceAlias,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -354,7 +354,7 @@ class _ChatPageState extends State<ChatPage> with Refena {
                       ? Theme.of(context).colorScheme.onPrimary
                       : Theme.of(context).colorScheme.onSurface,
                 ),
-                selectionColor: Colors.blue.withValues(alpha: 0.3),
+                selectionColor: Colors.blue.withOpacity(0.3),
               ),
               const SizedBox(height: 4),
               Text(
@@ -362,8 +362,8 @@ class _ChatPageState extends State<ChatPage> with Refena {
                 style: TextStyle(
                   fontSize: 10,
                   color: isMe
-                      ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.5)
-                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                      ? Theme.of(context).colorScheme.onPrimary.withOpacity(0.5)
+                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                 ),
               ),
             ],
