@@ -71,12 +71,12 @@ class _ReceivePageState extends State<ReceivePage> with Refena {
           TaskbarHelper.visualizeStatus(next.status);
         }
       },
-
+    );
 
     if (vm.status == null && vm.message == null) {
       return const Scaffold(
         body: SizedBox(),
-
+      );
     }
 
     final senderFavoriteEntry = ref.watch(favoritesProvider.select((state) => state.findDevice(vm.sender)));
@@ -131,7 +131,7 @@ class _ReceivePageState extends State<ReceivePage> with Refena {
                                               style: TextStyle(fontSize: smallUi ? 32 : 48),
                                               textAlign: TextAlign.center,
                                             ),
-
+                                          );
                                         },
                                       ),
                                       if (vm.showSenderInfo && vm.sender.deviceModel != null) ...[
@@ -230,12 +230,12 @@ class _ReceivePageState extends State<ReceivePage> with Refena {
                                                   onPressed: () {
                                                     unawaited(
                                                       Clipboard.setData(ClipboardData(text: vm.message!)),
-
+                                                    );
                                                     if (checkPlatformIsDesktop()) {
                                                       context.showSnackBar(t.general.copiedToClipboard);
                                                     }
                                                     vm.onAccept();
-                                                    popUntil(WebSharePage>());
+                                                    context.popUntil(WebSharePage);
                                                   },
                                                   icon: Icon(Icons.copy),
                                                   label: Text(t.general.copy),
@@ -252,7 +252,7 @@ class _ReceivePageState extends State<ReceivePage> with Refena {
                                                         // ignore: discarded_futures
                                                         launchUrl(Uri.parse(vm.message!), mode: LaunchMode.externalApplication);
                                                         vm.onAccept();
-                                                        popUntil(WebSharePage>());
+                                                        context.popUntil(WebSharePage);
                                                       },
                                                       icon: Icon(Icons.open_in_new),
                                                       label: Text(t.general.open),
@@ -270,16 +270,16 @@ class _ReceivePageState extends State<ReceivePage> with Refena {
                             _Actions(vm),
                           ],
                         ),
-
+                      );
                     },
                   ),
                 ),
               ),
             ),
           ),
-
+        );
       },
-
+    );
   }
 }
 
@@ -301,12 +301,12 @@ class _Actions extends StatelessWidget {
           ),
           onPressed: () {
             vm.onAccept();
-            popUntil(WebSharePage>());
+            context.popUntil(WebSharePage);
           },
           icon: const Icon(Icons.close),
           label: Text(t.general.close),
         ),
-
+      );
     }
 
     if (vm.status == SessionStatus.canceledBySender) {
@@ -324,14 +324,14 @@ class _Actions extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: () {
                 vm.onClose();
-                popUntil(WebSharePage>());
+                context.popUntil(WebSharePage);
               },
               icon: const Icon(Icons.check_circle),
               label: Text(t.general.close),
             ),
           ),
         ],
-
+      );
     }
 
     return Column(
@@ -347,7 +347,7 @@ class _Actions extends StatelessWidget {
               ),
               onPressed: () {
                 vm.onDecline();
-                popUntil(WebSharePage>());
+                context.popUntil(WebSharePage);
               },
               icon: const Icon(Icons.close),
               label: Text(t.general.decline),
@@ -365,6 +365,6 @@ class _Actions extends StatelessWidget {
           ],
         ),
       ],
-
+    );
   }
 }
