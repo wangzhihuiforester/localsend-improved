@@ -60,6 +60,13 @@ jobs:
           } else {
             Write-Host "WARNING: UCRT redist not found in Windows Kits"
           }
+          # Copy missing api-ms-win-core-* (COM/COMBase etc) from System32 - these are
+          # API set forwarders identical to the Win7 KB2999226 downlevel versions.
+          $existingCore = Get-ChildItem $release -Filter "api-ms-win-core-*.dll" | ForEach-Object { $_.Name }
+          Get-ChildItem "$env:WINDIR\System32\api-ms-win-core-*.dll" -ErrorAction SilentlyContinue | Where-Object { $existingCore -notcontains $_.Name } | ForEach-Object {
+            Copy-Item $_.FullName $release -Force
+            Write-Host ("CORE_ADDED: " + $_.Name)
+          }
 
       - name: Copy MSVC runtime DLLs (for Win7)
         shell: powershell
