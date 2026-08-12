@@ -181,7 +181,7 @@ class _ApkPickerPageState extends State<ApkPickerPage> with Refena {
                         },
                         activeTrackColor: Theme.of(context).colorScheme.primary,
                         activeColor: Theme.of(context).colorScheme.onPrimary,
-                        inactiveColor: Theme.of(context).colorScheme.outline,
+                        inactiveThumbColor: Theme.of(context).colorScheme.outline,
                         inactiveTrackColor: Theme.of(context).colorScheme.surface,
                       ),
                     ],
