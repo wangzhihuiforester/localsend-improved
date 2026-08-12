@@ -112,7 +112,7 @@ class _WebSharePageState extends State<WebSharePage> with Refena {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      onPopInvokedWithResult: (_, _) async {
+      onPopInvoked: (didPop, result) async {
         if (_stateEnum == _ServerState.initializing || _stateEnum == _ServerState.stopping) {
           return;
         }
