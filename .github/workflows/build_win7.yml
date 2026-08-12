@@ -87,6 +87,16 @@ jobs:
             Write-Host "Copied $($_.Name)"
           }
           Get-ChildItem $release -Filter "*.dll" | ForEach-Object { Write-Host ("BUNDLED: " + $_.Name) }
+      - name: Copy Win7 API set forwarders
+        shell: powershell
+        run: |
+          $release = "app/build/windows/x64/runner/Release"
+          if (Test-Path "tools/win7-downlevel") {
+            Get-ChildItem "tools/win7-downlevel" -Filter "*.dll" | ForEach-Object {
+              Copy-Item $_.FullName $release -Force
+              Write-Host ("FWD: " + $_.Name)
+            }
+          }
       - name: Verify Win7 compatibility hints
         shell: powershell
         run: |
