@@ -21,7 +21,7 @@ dependencies:
   mime: ^1.0.0
   path: 1.9.0
   pool: 1.5.2
-  refena_flutter: ^2.1.1
+  refena_flutter: 3.3.0
   rust_lib_localsend_app:
     path: rust_builder
   typed_isolates:
