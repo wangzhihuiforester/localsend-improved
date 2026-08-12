@@ -11,17 +11,17 @@ environment:
   sdk: ^3.4.0
 
 dependencies:
-  collection: 1.18.0 # allow newer versions, so it can compile with newer Flutter versions
-  connectivity_plus: ^6.0.0
-  crypto: 3.0.7
-  dart_mappable: ^4.2.0
-  desktop_drop: 0.7.1
+  collection: 1.18.0
+  connectivity_plus: ^7.3.1
+  crypto: ^3.0.7
+  dart_mappable: ^4.3.1
+  desktop_drop: ^0.7.1
   device_apps: 2.2.0
-  device_info_plus: ^10.1.0
-  dynamic_color: ^1.7.0
-  file_picker: ^9.2.0
-  file_selector: 1.1.0
-  flex_color_picker: ^3.5.0
+  device_info_plus: ^11.4.0
+  dynamic_color: ^1.9.0
+  file_picker: ^11.0.3
+  file_selector: ^1.1.0
+  flex_color_picker: ^3.7.2
   flutter:
     sdk: flutter
   flutter_displaymode: 0.7.0
@@ -75,15 +75,15 @@ dependencies:
 
 dev_dependencies:
   # Win7 分支: 以下版本兼容 Dart 3.4 (Flutter 3.22)
-  build_runner: ^2.4.0
-  dart_mappable_builder: ^4.2.0
-  flutter_gen_runner: ^5.4.0
-  flutter_lints: ^4.0.0
-  freezed: ^2.5.0
-  mockito: any
+  build_runner: ^2.16.0
+  dart_mappable_builder: ^4.3.1
+  flutter_gen_runner: ^5.15.0
+  flutter_lints: ^6.0.0
+  freezed: ^2.5.8
+  mockito: ^5.8.1
   refena_inspector: ^2.0.0
-  slang_build_runner: 4.18.0
-  test: ^1.30.0
+  slang_build_runner: 4.19.0
+  test: ^1.31.2
 
 dependency_overrides:
   path_provider_foundation: 2.4.1 # Win7: 覆盖为兼容 Dart 3.4 版本
