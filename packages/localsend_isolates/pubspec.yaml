@@ -23,9 +23,9 @@ dependencies:
   pool: 1.5.2
   refena_flutter: ^2.1.1
   rust_lib_localsend_app:
-    path: 1.9.0
+    path: rust_builder
   typed_isolates:
-    path: 1.9.0
+    path: ../typed_isolates
   uuid: ^4.4.0
 
 dev_dependencies:
